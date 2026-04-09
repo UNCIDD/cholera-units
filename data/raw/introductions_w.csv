@@ -1,0 +1,17 @@
+﻿te,year_min,year_max,year_med,loc1,loc2,loc3,loc4,loc5,p1,p2,p3,p4,p5
+T1,1970,1970,1970,Western Africa,,,,,1,,,,
+T2,1991,1991,1991,Western Africa,,,,,1,,,,
+T3,1970,1970,1970,Eastern Africa,,,,,1,,,,
+T4,1970,1978,1974,Eastern Africa,,,,,1,,,,
+T5,1970,1972,1971,Eastern Africa,Central Africa,,,,0.6,0.4,,,
+T6,1986,1989,1987.5,Eastern Africa,,,,,1,,,,
+T7,1982,1984,1983,Western Africa,,,,,1,,,,
+T8,1994,1998,1996,Eastern Africa,Southern Africa,,,,0.6,0.4,,,
+T9,1987.5766,1992.0304,1989.9557,Guinea,Cote D'ivoire,Liberia,Senegal,Western Africa,0.951,0.004,0.003,0.001,0.041
+T10,1993.5098,1996.6191,1995.4727,Kenya,Tanzania,Uganda,Comoros,Eastern Africa,0.648,0.345,0.004,0.001,0.002
+T11,1999.4473,2001.5061,2000.653,Mozambique,Zimbabwe,South Africa,Eastern Africa,,0.91,0.074,0.005,0.011,
+T12,2008.1568,2009.2207,2008.6833,Cameroon,Nigeria,Niger,,,0.605,0.383,0.013,,
+T13,2006.3616,2006.9792,2006.6934,Kenya,Eastern Africa,,,,0.994,0.006,,,
+T15,2018.9354,2020.7803,2019.8098,South Africa,Malawi,Zimbabwe,Southern Africa,Eastern Africa,0.831,0.152,0.016,0.001,
+T16,2007,2008,2007.5,Kenya,Eastern Africa,,,,0.6,0.4,,,
+T17,2007,2008,2007.5,Kenya,Eastern Africa,,,,0.6,0.4,,,
