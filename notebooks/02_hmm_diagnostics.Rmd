@@ -1,0 +1,418 @@
+---
+title: "`r params$doc_title`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+params:
+  doc_title: "Cholera Transmission Units: Model Diagnostics"
+  downsample: F
+  which_obs: "all_data"
+  stan_chains: 4
+  stan_iter_warmup: 250
+  stan_iter_sample: 250
+  seed: 4
+  save_plots: F
+  min_year: 1970
+  downsample_seed: 4
+  sample_fraction: 0.2
+  save_warmup: F
+  sep_sudan: F
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, include = T, warning = F, root.dir = here::here())
+
+library(tidyverse)
+library(cmdstanr)
+library(spData) 
+library(sf)
+library(posterior)
+library(here)
+library(bayesplot)
+
+```
+
+```{r, include = F}
+
+stan_iter_sample <- params$stan_iter_sample
+stan_iter_warmup <- params$stan_iter_warmup
+stan_chains <- params$stan_chains
+
+save_plots <- params$save_plots
+save_warmup <- params$save_warmup
+
+seed <- params$seed
+subsample <- params$subsample
+downsample <- params$downsample
+downsample_seed <- params$downsample_seed
+sample_fraction <- params$sample_fraction
+sampling <- params$which_obs
+min_year <- params$min_year
+sep_sudan <- params$sep_sudan
+
+simulate <- F
+test_subset <- F
+
+```
+
+```{r}
+
+options(scipen = 999999999)
+
+# Source functions
+source(here("analysis","00_functions_settings.R"), local = T)
+
+if (!dir.exists(out_dir)) {dir.create(out_dir)}
+
+set.seed(seed)
+
+```
+
+## Diagnostics from HMM model:
+
+<br>
+
+Stan settings:
+
+* Burn in: `r stan_iter_warmup` iterations
+* Sampling: `r stan_iter_sample` iterations
+* Chains: `r stan_chains`
+
+<br>
+```{r testing, include = F}
+knitr::read_chunk(here("analysis","06_post_hmm_stats.R"))
+```
+
+```{r load_model, message = F, echo=F, include = F}
+
+```
+
+```{r , message = F, echo=F, include = F}
+
+# parameter names
+pars <- c("lp__", "eta", "kappa", "zeta", "tau[1]", "tau[2]", "delta") 
+
+color_scheme_set("blue")
+
+```
+
+<br>
+
+Run time (in hours):
+
+<br>
+
+```{r , message = F}
+
+if(save_warmup){
+model_objs$metadata$time |> as.data.frame() |> mutate_at(c("warmup", "sampling", "total"), ~ round(./(60*60),2))
+}
+
+```
+<br>
+
+Diagnostic summary:
+
+<br>
+
+
+```{r , message = F}
+
+model_objs$diagnostic_summary
+
+```
+
+<br>
+
+#### Pairs plots
+
+<br>
+
+```{r, message = F, fig.height = 10, fig.width = 10}
+
+mcmc_pairs(model_objs$model_draws, pars = pars,
+           off_diag_args = list(size = 0.5, alpha = 0.5),
+           diag_fun = "dens")
+
+```
+
+<br>
+
+
+#### Rhat
+
+<br>
+
+```{r, message = F, fig.height = 8}
+
+mcmc_rhat(model_objs$rhats[pars[-1]]) + yaxis_text(hjust = 1)
+
+```
+
+<br>
+
+#### Neff ratios
+
+<br>
+
+```{r, message = F, fig.height = 8}
+
+mcmc_neff(model_objs$neffs[pars[-1]]) + yaxis_text(hjust = 1)
+
+```
+
+<br>
+
+#### Parameter summaries:
+
+<br>
+
+##### Kappa (gravity constant)
+
+```{r, message = F}
+
+model_fit_summary("kappa") %>% select(-true)
+traceplot(obj = model_objs$model_draws, "kappa")
+mcmc_hist(model_objs$model_draws, pars = "kappa")
+
+```
+
+<br>
+
+##### Zeta (distance transformation)
+
+```{r, message = F}
+model_fit_summary("zeta") %>% select(-true)
+traceplot(obj = model_objs$model_draws, "zeta")
+mcmc_hist(model_objs$model_draws, pars = "zeta")
+
+```
+
+<br>
+
+##### Tau (population transformation)
+
+```{r, message = F}
+
+model_fit_summary("tau[1]") %>% select(-true)
+model_fit_summary("tau[2]") %>% select(-true)
+traceplot(obj = model_objs$model_draws, "tau")
+mcmc_hist(model_objs$model_draws, regex_pars = "tau")
+
+```
+
+<br>
+
+##### Eta (Case transformation)
+
+```{r, message = F}
+
+model_fit_summary("eta") %>% select(-true)
+traceplot(obj = model_objs$model_draws, "^eta")
+mcmc_hist(model_objs$model_draws, pars = "eta")
+
+```
+
+<br>
+
+##### Epsilon (case underreporting)
+
+```{r, message = F}
+
+purrr::map(str_c("e_i[", 1:M, "]"), model_fit_summary) |> 
+  set_names(str_c("e_i[", 1:M, "]")) |> 
+  bind_rows(.id = "Parameter") |> select(-true) |> 
+  print(n=M)
+
+```
+
+<br>
+
+##### Delta (persistence)
+
+```{r, message = F}
+
+model_fit_summary("delta") %>% select(-true)
+traceplot(obj = model_objs$model_draws, "delta")
+mcmc_hist(model_objs$model_draws, pars = "delta")
+
+```
+
+<br>
+
+##### Omega (spatial weights):
+
+<br>
+
+**Rhat**
+
+<br>
+
+```{r, message = F, fig.height = 10}
+
+w_pars <- model_objs$metadata$model_params[str_which(model_objs$metadata$model_params, "^w\\[")]
+
+w_rhats <- model_objs$rhats[w_pars]
+mcmc_rhat(w_rhats) + 
+  theme_classic() + 
+  theme(axis.text.y = element_blank(), 
+        axis.ticks = element_blank())
+
+```
+
+<br>
+
+```{r}
+if(length(names(which(w_rhats >=1.1)))>0){
+  print(c("Rhat >= 1.1:", names(purrr::map(which(w_rhats >=1.1), ~{
+    str_c("edge ", .x, ": ", 
+          str_c(countries_subset[which(spatial_objs$map_from_edge==.x, arr.ind = T)], 
+                collapse = ", "))
+  }) |> set_names())))
+}else{
+  print("All Rhats <1.1")
+}
+```
+
+<br>
+
+**Neff**
+
+<br>
+
+```{r, message = F, fig.height = 10}
+
+w_neffs <- model_objs$neffs[w_pars]
+mcmc_neff(w_neffs) + 
+  theme_classic() + 
+  theme(axis.text.y = element_blank(), 
+        axis.ticks = element_blank())
+
+```
+
+<br>
+
+```{r}
+if(length(names(which(w_neffs <=0.1)))>0){
+  print(c("Neff ratio <= 0.1:", names(purrr::map(which(w_neffs <=0.1), ~{
+    str_c("edge ", .x, ": ", 
+          str_c(countries_subset[which(spatial_objs$map_from_edge==.x, arr.ind = T)], 
+                collapse = ", "))
+  }) |> set_names())))
+}else{
+  print("All Neff Ratios >0.1")
+}
+```
+
+<br>
+
+#### Initial probabilities of presence
+
+<br>
+
+**Rhats:**
+
+<br>
+
+```{r}
+
+pi_pars <- model_objs$metadata$model_params[str_which(model_objs$metadata$model_params, "^pi_0\\[")]
+
+pi_rhat <- model_objs$rhats[pi_pars]
+mcmc_rhat(pi_rhat) + 
+  theme_classic() + 
+  theme(axis.text.y = element_blank(), 
+        axis.ticks = element_blank())
+
+```
+
+<br>
+
+**Neffs:**
+
+<br>
+
+```{r}
+
+pi_neff <- model_objs$neffs[pi_pars]
+mcmc_neff(pi_neff) + 
+  theme_classic() + 
+  theme(axis.text.y = element_blank(), 
+        axis.ticks = element_blank())
+
+```
+
+<br>
+
+**Probabilities:**
+
+<br>
+
+```{r, fig.height = 14, fig.width = 10}
+
+poststan_df("pi_0", state = F) |> 
+  mutate(location = str_c("loc-", ind),
+         time = 1) |> 
+  translate_cols() |> 
+  select(country, te, year, mean) |> 
+  ggplot() +
+  geom_point(aes(x = te, y = mean, color = te)) +
+  facet_wrap(~country, ncol = 4) +
+  plot_colors +
+  theme_bw() +
+  scale_y_continuous(limits = c(0,1))
+
+```
+
+
+<br>
+
+#### Introduction probabilities (gamma) by country & strain over time:
+
+<br>
+
+```{r, fig.height = 18}
+
+pred_gamma <- translate_cols(poststan_df("gamma", state = F))
+
+ggplot(data = pred_gamma) +
+    geom_ribbon(aes(x = year, ymin = q5, ymax = q95, fill = te), alpha = .1, position = position_dodge(0.2)) +
+    geom_line(aes(x = year, y = mean, color = te), position = position_dodge(0.2)) +
+    facet_wrap(~country, ncol = 2) +
+    scale_x_continuous(breaks = scales::pretty_breaks()) +
+    labs(color = "TE",
+    fill = "TE") + 
+    plot_colors +
+    plot_fillcolors +
+    guides(color = guide_legend(nrow = 2), fill =guide_legend(nrow = 2)) +
+    theme_bw() +
+    theme(text = element_text(size = 8), 
+          legend.position = "bottom",
+          ggside.axis.text.y = element_blank())
+
+pred_gamma_tot <- pred_gamma |> 
+  group_by(te, year) |> 
+  mutate(prob = sum(mean)) |> 
+  ungroup() |> 
+  select(te, year, prob) |> 
+  distinct() |> 
+  arrange(te, year)
+
+ggplot() +
+  geom_line(aes(x = year, y = prob, color = te), 
+            position = position_dodge(0.2), data = pred_gamma_tot) +
+  scale_x_continuous(breaks = scales::pretty_breaks()) +
+  labs(color = "TE",
+  fill = "TE") + 
+  plot_colors +
+  guides(color = guide_legend(nrow = 2), fill =guide_legend(nrow = 2)) +
+  theme_bw() +
+  theme(text = element_text(size = 8), 
+        legend.position = "bottom",
+        ggside.axis.text.y = element_blank())
+
+```
+
+

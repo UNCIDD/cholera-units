@@ -1,0 +1,207 @@
+---
+title: "`r params$doc_title`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 5
+params:
+  doc_title: "Cholera Transmission Units: Model Results"
+  downsample: F
+  which_obs: "all_data"
+  stan_chains: 4
+  stan_iter_warmup: 250
+  stan_iter_sample: 250
+  run_model: T
+  seed: 4
+  save_plots: F
+  min_year: 1970
+  downsample_seed: 4
+  sample_fraction: 0.2
+  save_warmup: T
+  sep_sudan: F
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, include = T, warning = F, root.dir = here::here())
+
+```
+
+
+## Stan HMM model on cholera transmission, real data:
+
+
+```{r, echo = F}
+
+run_model <- params$run_model
+save_warmup <- params$save_warmup
+stan_iter_sample <- params$stan_iter_sample
+stan_iter_warmup <- params$stan_iter_warmup
+stan_chains <- params$stan_chains
+
+save_plots <- params$save_plots
+
+seed <- params$seed
+downsample <- params$downsample
+downsample_seed <- params$downsample_seed
+sample_fraction <- params$sample_fraction
+sampling <- params$which_obs
+min_year <- params$min_year
+sep_sudan <- params$sep_sudan
+
+simulate <- F
+test_subset <- F
+
+```
+
+```{r initialize, message = F}
+
+library(here)
+library(cmdstanr)
+library(bayesplot)
+library(spData) 
+library(sf)
+library(posterior)
+library(here)
+library(cowplot)
+library(tidyverse)
+
+options(scipen = 999999999)
+
+# Source functions
+source(here("analysis","00_functions_settings.R"), local = T)
+
+if (!dir.exists(out_dir)) {dir.create(out_dir)}
+
+set.seed(seed)
+
+```
+
+Stan settings:
+
+* Burn in: `r stan_iter_warmup` iterations
+* Sampling: `r stan_iter_sample` iterations
+* Chains: `r stan_chains`
+
+<br>
+
+
+```{r testing, include = F}
+knitr::read_chunk(here("analysis","06_post_hmm_stats.R"))
+```
+
+```{r run_model, message = F, echo=F, include = T, warning = F}
+
+```
+
+```{r load_model, message = F, echo=F, include = F}
+
+```
+
+*Input: `r V` strains in `r M` countries over `r n_time` years.*
+
+*Downsampling strategy: `r  paste(print_sample_func())`*
+
+
+<br>
+
+Summary diagnostics:
+
+```{r , message = F}
+
+model_objs$diagnostic_summary
+
+```
+
+<br>
+
+```{r est_dfs, message = F, include = F, echo = F}
+```
+
+<br>
+
+##### Rho: measure of probability of presence of each strain
+
+<br>
+
+```{r plot_rho, message = F, fig.height = 18, fig.width=12}
+```
+
+<br>
+
+##### Prevalence
+
+<br>
+
+Inferred strain prevalence by country over time.
+
+<br>
+
+```{r plot_prev, message = F, fig.height = 18}
+```
+
+
+<br>
+
+##### Gravity constant
+$\kappa$ parameter
+
+```{r}
+model_fit_summary("kappa") |> select(-true)
+traceplot(obj = model_objs$model_draws, "kappa")
+mcmc_hist(model_objs$model_draws, pars = "kappa")
+```
+
+<br>
+
+##### Spatial weights
+$\omega_{i,j}$ parameters - asymmetric country-pair random effects
+
+```{r map_prep, message = F, echo=F, include = F}
+```
+
+```{r map_w, message = F, echo=F}
+```
+
+<br>
+
+##### Connectivity measure
+$\xi_{i,j}$ parameters - asymmetric measure of between-country connectivity that is later used in clustering algorithms
+
+```{r map_xi, message = F, echo=F}
+```
+
+<br>
+
+##### Post-estimation inference
+
+Cases attributed to each lineage using inferred lineage presence
+
+```{r pred_cases, message = F, echo=F, fig.height=18}
+```
+
+<br>
+
+
+##### Viterbi
+
+<br>
+
+Algorithm determining the most likely state sequence for each lineage by country and year.
+
+<br>
+
+```{r plot_zstar, message = F, fig.height = 18}
+```
+
+<br>
+<br>
+
+```{r pred_obs, message = F, echo = F, fig.width=14, fig.height = 15}
+```
+
+```{r save_clust, message = F, echo = F}
+```
+
+
