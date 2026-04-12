@@ -30,7 +30,8 @@ source(here("analysis","00_functions_settings.R"), local = T)
 sequences <- read_csv(here("data/raw/sequences.csv"))
 
 ###WHO cases----
-who_cases <- read_csv(here("data/raw/who_annual_case_reports.csv"))
+who_cases <- read_csv(here("data/raw/who_annual_case_reports.csv"),
+                      col_select = -1)
 
 ### Phylogeography----
 
