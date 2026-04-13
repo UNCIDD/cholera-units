@@ -5,20 +5,6 @@
 // and code generously provided from Claire (Justin's JHU PhD student)
 
 functions {
-  //observation model
-  real log_obs_func(int y_iv, real log_lambda, int z, real epsilon) {
-    real obs_prob;
-    
-    if(z==1){
-      //probability of observing y_v,i,t if present
-      obs_prob = poisson_log_lpmf(y_iv|log_lambda);
-    }else if(y_iv==0){
-      obs_prob = log(1-epsilon);
-    }else{
-      obs_prob = log(epsilon);
-    }
-    return obs_prob;
-  }
   
   real prob_v0_calc(int n, real epsilon, int V, row_vector probs){
     real pplus = 1;
@@ -33,30 +19,6 @@ functions {
       pplus = 1-epsilon;
     }
     return pplus;
-  }
-  
-  row_vector A_calc(int K, real pcol, real epsilon){
-    row_vector[K] A;
-    
-    for(k in 1:K){// t
-      int z = k-1; // state
-      real a;
-      if(pcol==1){
-        a = pcol-epsilon;
-      }else if(pcol==0){
-        a = pcol+epsilon;
-      }else{
-        a = pcol;
-      }
-      
-      if(z==1){
-        A[k] = a;
-      }else{
-        A[k] = 1-a;
-      }
-    }// end t
-    
-    return A;
   }
   
 }
