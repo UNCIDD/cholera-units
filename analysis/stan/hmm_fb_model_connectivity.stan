@@ -194,26 +194,29 @@ transformed parameters {
       vector[T] log_lambda_iv = log_lambda[map_to_n[i,1]:map_to_n[i,T],v]; // sequencing rate parameter for poisson approximation of prevalence
       array[T] int y_iv = y[map_to_n[i,],v]; // subset observations to country/strain
       int n_t1 = map_to_n[i,1]; // n at time 1
-
-      for(k in 1:K){
-        int z = k-1;
-        real pi;
-        if(z==1){
-          pi = pi_0[i,v];
-        }else{
-          pi = 1-pi_0[i,v];
-        }                    //probability at time 1 * probability of observation given state
-        logalpha[v][k,n_t1] = log(pi) + log_obs_func(y_iv[1],log_lambda_iv[1],k-1,epsilon);
+      real ll0;
+      real ll1;
+      real denom;
+      
+      if(y_iv==0){
+        ll0 = log1m(epsilon);
+      }else{
+        ll1 = poisson_log_lpmf(y_iv | log_lambda[n_t1,v]);
       }
       
-      // convert 
-      alpha[v][1:K,n_t1] = softmax(to_vector(logalpha[v][1:K,n_t1]));
-    
-      //initialize p_col for time 1 
-      for(k in 1:K){
-        p_col[k][n_t1,v] = epsilon;
-      }
-
+      //probability at time 1 * prob obs given state
+      logalpha[v][1,n_t1] = log1m(pi_0[i,v]) + ll0;
+      logalpha[v][2,n_t1] = log(pi_0[i,v]) + ll1;
+      
+      denom = log_sum_exp(logalpha[v][1,n_t1], logalpha[v][2.n_t1])
+      
+      //convert
+      alpha[v][1,n_t1] = exp(logalpha[v][1,n_t1] - denom);
+      alpha[v][2,n_t1] = exp(logalpha[v][2,n_t1] - demom);
+      
+      //initialize p_col for time 1
+      p_col[1][n_t1,v] = epsilon;
+      p_col[2][n_t1,v] = epsilon;
     
     }//end country loop
   }//end strain loop
