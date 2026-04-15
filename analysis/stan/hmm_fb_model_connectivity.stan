@@ -101,7 +101,7 @@ parameters {
   real<lower = -10, upper = 1> log_delta;    // strain persistence from one year to the next in a given country
 
   //prevalence
-  matrix<lower = log(1e-4), upper = log(max(N_sequences))>[N,V] log_lambda;    // for poisson approximation of prevalence
+  matrix<lower = log(1e-4), upper = log(max(N_sequences)+1)>[N,V] log_lambda;    // for poisson approximation of prevalence
 
   //cases
   vector<lower = 0, upper = 1>[M] e_i;            // under-reporting of cholera cases (location-specific)
@@ -141,9 +141,11 @@ transformed parameters {
   {// connectivity
     for(i in 1:M){
       for (k in start_by_dest[i]:end_by_dest[i]) {// start other country (j) loop
+
           int j = node1_by_dest[k];    // origin location into m
           int ji = map_from_edge[j,i];
-          xi[ji] = exp(log(kappa * (((pop[j])^tau[1]*(pop[i])^tau[2])/(dist_by_dest[ji]^zeta))) + w[ji]);
+          real logxi = log(kappa) + (tau[1]*log(pop[j])) + (tau[2]*log(pop[i])) - (zeta * log(dist_by_dest[ji])) + w[ji];
+          xi[ji] = exp(logxi);
  
       }
     }
@@ -191,28 +193,28 @@ transformed parameters {
   for(v in 1:V){
     // loop through countries
     for(i in 1:M){
-      vector[T] log_lambda_iv = log_lambda[map_to_n[i,1]:map_to_n[i,T],v]; // sequencing rate parameter for poisson approximation of prevalence
-      array[T] int y_iv = y[map_to_n[i,],v]; // subset observations to country/strain
       int n_t1 = map_to_n[i,1]; // n at time 1
+      int y1 = y[n_t1,v]; // subset observations to country/strain
       real ll0;
       real ll1;
       real denom;
       
-      if(y_iv==0){
+      if(y1==0){
         ll0 = log1m(epsilon);
       }else{
-        ll1 = poisson_log_lpmf(y_iv | log_lambda[n_t1,v]);
+        ll0 = log(epsilon);
       }
+      ll1 = poisson_log_lpmf(y1 | log_lambda[n_t1,v]);
       
       //probability at time 1 * prob obs given state
       logalpha[v][1,n_t1] = log1m(pi_0[i,v]) + ll0;
       logalpha[v][2,n_t1] = log(pi_0[i,v]) + ll1;
       
-      denom = log_sum_exp(logalpha[v][1,n_t1], logalpha[v][2.n_t1])
+      denom = log_sum_exp(logalpha[v][1,n_t1], logalpha[v][2,n_t1]);
       
       //convert
       alpha[v][1,n_t1] = exp(logalpha[v][1,n_t1] - denom);
-      alpha[v][2,n_t1] = exp(logalpha[v][2,n_t1] - demom);
+      alpha[v][2,n_t1] = exp(logalpha[v][2,n_t1] - denom);
       
       //initialize p_col for time 1
       p_col[1][n_t1,v] = epsilon;
@@ -247,50 +249,48 @@ transformed parameters {
     
     {// start colonization probability
       
-    // loop over countries
-    for(i in 1:M){
-      // loop over strains
-      for(v in 1:V){
+    // loop over strains
+    for(v in 1:V){
+      
+      // initialize origin-side infectious pressure for this t, v
+      vector[M] origin_force;
+      
+      for (j in 1:M) {
+        int nm_j = map_to_n[j, t - 1]; // n at t-1 for country j
+        origin_force[j] = pow(lambda_star[nm_j, v] * cases[nm_j], eta);
+      }
+      
+      // compute destination-specific colonization
+      for(i in 1:M){
         // mappings
         int n = map_to_n[i,t]; // n at t for country i
         int nm = map_to_n[i,t-1]; // n at t-1 for country i
         // initialize
         // real phi = 1-(1-exp(-gamma[nm,v])); // initialize rate of colonization & self-introduction
-        real phi_base = 1-gamma[nm,v]; // initialize probability of colonization & self-introduction
-        
+        real force = 0; // initialize probability of colonization & self-introduction
+
         for (k in start_by_dest[i]:end_by_dest[i]) {// start other country (j) loop
           int j = node1_by_dest[k];    // origin location into m
-          int nm_j = map_to_n[j,t-1]; // n at t-1 for country j
-          int ji = map_from_edge[j,i];
+          int ji = map_from_edge[j,i]; // edge
           
           // update rate of colonization
           // prevalence*cases*connectivity ~ per case transmission for strain v multiplied by P(z_j=1)
-          phi_base *= 1 - (1 - exp(-pow(lambda_star[nm_j, v] * cases[nm_j], eta) * xi[ji]));
+          force += origin_force[j] * xi[ji];
         
         }// end other country loop
           
-        // update rate of colonization to incorporate self re-introduction (delta)
+        // update rate of colonization to incorporate self re-introduction (delta) & intercontinental introduction
+        real phi_base = 1 - gamma[nm,v] * exp(-force); // initialize probability of colonization & self-introduction
+        real self_force = origin_force[i] * delta;
+        
         // previous state 0 -> current state 1
         p_col[1][n, v] = 1 - phi_base;
 
         // previous state 1 -> current state 1
-        {
-          real phi_present = phi_base;
-          phi_present *= 1 - (1 - exp(-pow(lambda_star[nm, v] * cases[nm], eta) * delta));
-          p_col[2][n, v] = 1 - phi_present;
-        }
-        // for(k in 1:K){
-        //   int zprev = k-1;//state at time t-1
-        //   if(zprev==1){
-        //     // prevalence*cases*persistence ~ per case transmission for strain v
-        //     phi *= 1-(1-exp(-((lambda_star[nm,v] * cases[nm])^eta * delta)));
-        //     p_col[k][n,v] = 1-phi;//convert to pcol[2], this is transition from state 1->1, 1-pcol[2] is 1->0
-        //   }else{
-        //     p_col[k][n,v] = 1-phi;//convert to pcol[1], this is transition from state 0->1, 1-pcol[1] is 0->0
-        //   }
-        // }
-      }// end strain loop
-    }// end country loop
+        p_col[2][n, v] = 1 - phi_base * exp(-self_force);
+
+      }// end country loop
+    }// end strain loop
    
     }// end colonization probability
     
@@ -302,8 +302,6 @@ transformed parameters {
       for(v in 1:V){
         
         // initialize
-        // matrix[K,K] A; // transition probabilities;
-        // array[K] real accumulator; 
         // subset observed data to strain & country
         int y_iv = y[map_to_n[i,t],v];
         real log_lambda_iv = log_lambda[map_to_n[i,t],v]; // sequencing rate parameter for poisson approximation of prevalence
@@ -323,12 +321,12 @@ transformed parameters {
         
         // transition probabilities, clamped away from 0/1
         a01 = p_col[1][n, v];
-        if (a01 == 1) a01 = 1 - epsilon;
-        else if (a01 == 0) a01 = epsilon;
+        if (a01 >= 1) a01 = 1 - epsilon;
+        else if (a01 <= 0) a01 = epsilon;
 
         a11 = p_col[2][n, v];
-        if (a11 == 1) a11 = 1 - epsilon;
-        else if (a11 == 0) a11 = epsilon;
+        if (a11 >= 1) a11 = 1 - epsilon;
+        else if (a11 <= 0) a11 = epsilon;
 
         a00 = 1 - a01;
         if (a00 == 1) a00 = 1 - epsilon;
@@ -388,7 +386,6 @@ transformed parameters {
   }//end time loop
   
   }// end FORWARD algorithm
-
      
 }//end transformed parameters block
 
@@ -583,11 +580,11 @@ generated quantities {
         a01 = p_col[1][n, v]; // 0 -> 1
         a11 = p_col[2][n, v]; // 1 -> 1
 
-        if (a01 == 0) a01 = epsilon;
-        else if (a01 == 1) a01 = 1 - epsilon;
+        if (a01 <= 0) a01 = epsilon;
+        else if (a01 >= 1) a01 = 1 - epsilon;
 
-        if (a11 == 0) a11 = epsilon;
-        else if (a11 == 1) a11 = 1 - epsilon;
+        if (a11 <= 0) a11 = epsilon;
+        else if (a11 >= 1) a11 = 1 - epsilon;
 
         a00 = 1 - a01; // 0 -> 0
         a10 = 1 - a11; // 1 -> 0
@@ -712,11 +709,11 @@ generated quantities {
         a01 = p_col[1][n, v]; // 0 -> 1
         a11 = p_col[2][n, v]; // 1 -> 1
 
-        if (a01 == 0) a01 = epsilon;
-        else if (a01 == 1) a01 = 1 - epsilon;
+        if (a01 <= 0) a01 = epsilon;
+        else if (a01 >= 1) a01 = 1 - epsilon;
 
-        if (a11 == 0) a11 = epsilon;
-        else if (a11 == 1) a11 = 1 - epsilon;
+        if (a11 <= 0) a11 = epsilon;
+        else if (a11 >= 1) a11 = 1 - epsilon;
 
         a00 = 1 - a01; // 0 -> 0
         a10 = 1 - a11; // 1 -> 0
