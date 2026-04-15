@@ -4,7 +4,7 @@
 
 options(knitr.duplicate.label = "allow")
 
-downsample <- F
+downsample_random <- F
 downsample_seed <- 525
 sample_fraction <- 0.8
 

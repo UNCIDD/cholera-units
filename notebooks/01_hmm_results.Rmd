@@ -7,7 +7,7 @@ output:
     toc_depth: 5
 params:
   doc_title: "Cholera Transmission Units: Model Results"
-  downsample: F
+  downsample_random: F
   which_obs: "all_data"
   stan_chains: 4
   stan_iter_warmup: 250
@@ -24,7 +24,18 @@ params:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, message = F, include = T, warning = F, root.dir = here::here())
+knitr::opts_chunk$set(echo = F, message = NA, include = T, warning = F, root.dir = here::here(),
+  results = "markup")
+register_knitr_engine(override = TRUE)
+options(cmdstanr_warn_inits = FALSE)
+
+# options(knitr.progress.fun = function(total, labels) {
+#   p <- progressr::progressor(total, on_exit = FALSE)
+#   list(
+#     update = function(i) p(sprintf("chunk: %s", labels[i])),
+#     done = function() p(type = "finish")
+#   )
+# })
 
 ```
 
@@ -43,15 +54,15 @@ stan_chains <- params$stan_chains
 save_plots <- params$save_plots
 
 seed <- params$seed
-downsample <- params$downsample
+downsample_random <- params$downsample_random
 downsample_seed <- params$downsample_seed
 sample_fraction <- params$sample_fraction
 sampling <- params$which_obs
 min_year <- params$min_year
 sep_sudan <- params$sep_sudan
 
-simulate <- F
-test_subset <- F
+# simulate <- F
+# test_subset <- T
 
 ```
 
@@ -76,6 +87,7 @@ if (!dir.exists(out_dir)) {dir.create(out_dir)}
 
 set.seed(seed)
 
+
 ```
 
 Stan settings:
@@ -86,13 +98,8 @@ Stan settings:
 
 <br>
 
-
-```{r testing, include = F}
+```{r , include = F}
 knitr::read_chunk(here("analysis","06_post_hmm_stats.R"))
-```
-
-```{r run_model, message = F, echo=F, include = T, warning = F}
-
 ```
 
 ```{r load_model, message = F, echo=F, include = F}

@@ -73,7 +73,7 @@ print_sample_func <- function(){
   if(test_subset){
     print(glue::glue("     Fully observed data in a subsample of {M} countries and {n_time} years."))
   }else{
-    if(downsample){
+    if(downsample_random){
       print(glue::glue("     randomly downsample all locations and strains with a sampling fraction of {sample_fraction}."))
     }else{
       print(glue::glue("     Fully observed data."))
@@ -620,8 +620,8 @@ if(!exists("sampling")){
 if(!exists("min_year")){
   min_year <- get_min_year(sampling)
 }
-if(!exists("downsample")){
-  downsample <- F 
+if(!exists("downsample_random")){
+  downsample_random <- F 
 }
 if(!exists("sample_fraction")){
   sample_fraction <- 0.8 
@@ -629,7 +629,7 @@ if(!exists("sample_fraction")){
 if(!exists("downsample_seed")){
   downsample_seed <- 5 
 }
-if(downsample){
+if(downsample_random){
   sampling <- glue::glue("downsample{sample_fraction*100}_{downsample_run_num}")
 }
 if(!exists("test_subset")){

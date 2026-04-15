@@ -7,7 +7,7 @@ output:
     toc_depth: 5
 params:
   doc_title: "Cholera Transmission Units: Model Diagnostics"
-  downsample: F
+  downsample_random: F
   which_obs: "all_data"
   stan_chains: 4
   stan_iter_warmup: 250
@@ -45,7 +45,7 @@ save_warmup <- params$save_warmup
 
 seed <- params$seed
 subsample <- params$subsample
-downsample <- params$downsample
+downsample_random <- params$downsample_random
 downsample_seed <- params$downsample_seed
 sample_fraction <- params$sample_fraction
 sampling <- params$which_obs

@@ -129,18 +129,35 @@ if(run_model){
   #specify model file 
   stan_model <- cmdstan_model(here("analysis","stan","hmm_fb_model_connectivity.stan"), stanc_options = list("O1"))
   
+  init_fun <- function() {
+    list(
+      # keep these moderate and interior
+      tau = c(0.3, 0.3),
+      zeta_std = 0,
+      kappa = 0.05,
+      log_delta = -2,
+      eta = 0.5,
+      
+      # keep probabilities away from boundaries
+      e_i = runif(M, 0.2, 0.5),
+      pi_0 = matrix(runif(M * V, 0.05, 0.15), M, V),
+      w = rep(-2, stan_data$N_edges),
+      log_lambda = matrix(log(0.1), N, V)
+    )
+  }
+  
   #fit the model
   model_fit <- stan_model$sample(
     data = stan_data,
     seed = seed,
-    init = 0.1, 
+    init = init_fun, 
     chains = stan_chains,
     parallel_chains = stan_chains,
     iter_warmup = stan_iter_warmup,
     iter_sampling = stan_iter_sample,
     max_treedepth = 14L,
     adapt_delta = .9,
-    refresh = 250,
+    refresh = 100,
     save_warmup = save_warmup,
     show_messages = T)
   
@@ -165,6 +182,28 @@ if(run_model){
   
 }
 
+## ---- save_model
 
-
+if(run_model){
+  
+  # parameter names
+  vars <- c("lp__", "eta", "kappa", "zeta", "tau", "log_delta", "delta", "w", 
+            "rho","alpha","pi_0","beta","gamma","lambda","lambda_star","prev_lambda",
+            "pred_cases","zstar","e_i")
+  
+  model_objs <- list()
+  model_objs$metadata <- model_fit$metadata()
+  model_objs$diagnostic_summary <- model_fit$diagnostic_summary()
+  model_objs$model_draws <- model_fit$draws(inc_warmup = F, format = "draws_df", variables = vars)
+  model_objs$var_summary <- model_fit$summary(variables = c(vars, "xi"))
+  model_objs$neffs <- bayesplot::neff_ratio(model_fit, pars = vars)
+  model_objs$rhats <- bayesplot::rhat(model_fit, pars = vars)
+  
+  xi_model_draws <- model_fit$draws(variables = "xi", inc_warmup = F, format = "draws_df")
+  
+  #save model object
+  qs2::qs_save(model_objs, glue::glue("{out_dir}/model_objs_{Sys.Date()}"))
+  qs2::qs_save(xi_model_draws, glue::glue("{xi_dir}/draws/xi_model_draws_{Sys.Date()}"))
+  
+}
 

@@ -39,7 +39,7 @@ render_report <- function(report, ...){
   }
   
   params <- list(doc_title = title,
-                 downsample = downsample, 
+                 downsample_random = downsample_random, 
                  which_obs = which_obs,
                  stan_chains = stan_chains,
                  stan_iter_warmup = stan_iter_warmup,

@@ -128,7 +128,7 @@ samples <- cases_lineages |>
   select(location, time, samples, te, strain) |> 
   arrange(te, location, time, samples) |> select(-strain) 
 
-if(downsample){
+if(downsample_random){
   set.seed(downsample_seed)
   partitioned_samples <- readRDS(here::here("data/downsample_groups.RDS"))
   samples <- samples |> 

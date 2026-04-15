@@ -12,7 +12,7 @@ downsample_run_num <- 5 ##UPDATE FOR DIFFERENT SAMPLES
 
 ## Update default knitting params
 
-downsample <- T
+downsample_random <- T
 sample_fraction <- 0.8
 downsample_seed <- 6843 #seed+4
 run_model <- T

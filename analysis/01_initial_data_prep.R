@@ -162,6 +162,10 @@ cases_lineages <- sequences |>
   distinct() |> 
   select(-sample_num)
 
+# Remove Lesotho - no cases or sequences
+# cases_lineages <- cases_lineages |> 
+#   filter_out(country=="lesotho")
+
 
 #check
 cases_lineages |> 

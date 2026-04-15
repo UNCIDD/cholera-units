@@ -12,10 +12,17 @@ source(here("notebooks/generate_reports", "default_params.R"), local = T)
 ## Update default knitting params
 
 run_model <- T
+# test_subset <- T
+# stan_iter_sample <- 2000
+# stan_iter_warmup <- 2000
+# min_year <- 1990
 # save_warmup <- F
 
+source(here("analysis","05_run_hmm.R"), local = T, echo = TRUE, print.eval = TRUE)
 
 #Render----
+
+run_model <- F
 
 render_report(report = "results")
 #render_report(report = "clustering")

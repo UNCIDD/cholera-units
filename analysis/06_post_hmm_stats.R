@@ -429,7 +429,7 @@ saveRDS(pred_prev_lambda, glue::glue("{xi_dir}/pred_prev_lambda.rds"))
 saveRDS(pred_z, glue::glue("{xi_dir}/pred_z_star.rds"))
 saveRDS(model_seed, glue::glue("{xi_dir}/model_run_seed.rds"))
 
-if(downsample){
+if(downsample_random){
   saveRDS(y_obs, glue::glue("{xi_dir}/downsampled_y.rds"))
 }
 
