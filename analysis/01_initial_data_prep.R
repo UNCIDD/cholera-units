@@ -35,13 +35,11 @@ who_cases <- read_csv(here("data/raw/who_annual_case_reports.csv"),
 
 ### Phylogeography----
 
-phylo_raw <- read_tsv(here("data/raw/phylogeography/2024-10-04_constant_relaxed_run",
-                           "2024-10-03_constant_relaxed_discrete.pruned.log")) 
+phylo_raw <- read_tsv(here("data/raw/phylogeography/2026-05-06_constant_relaxed_discrete.Location.rates.combined.log")) 
 
 ### Introductions----
 #T1-T8 estimates from Weill et al 2017,
-#T9-T15 estimates from our phylogeographic analysis
-#T16 & T17 lineage estimates from Xiao et al
+#T9-T15 estimates from our phylogeographic analysis - update 04/2026 
 introductions_raw <- read_csv(here("data/raw","introductions_w.csv")) 
 
 #-----------------------------------------------------------#
@@ -131,6 +129,7 @@ introductions <- introductions_raw |>
 
 # Reshape to long dataset with transition rates
 phylo <- phylo_raw |> 
+  select(-contains("nonZeroRates")) |> 
   pivot_longer(cols = starts_with("Location"), 
                names_to = c(".value","countries"),
                names_pattern = c("(Location\\..*\\.)(.*\\..*)")) |> 

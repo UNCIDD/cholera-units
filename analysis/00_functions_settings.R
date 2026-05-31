@@ -10,13 +10,12 @@
 #' @param seq whether the dataset contains sequencing information
 #' @return returns a tibble
 
-clean_df <- function(data, seq = F) {
-  d <- data |> 
-    janitor::clean_names() |> 
+standardize_countries <- function(df, country_name = country){
     #Make country names consistent across files, and remove special characters
     #Fix apostrophes, remove accents, remove strange characters
-    mutate(country = str_trim(str_to_lower(country)),
-           country = str_replace_all(country, c("’"="'", 
+  df |> 
+    mutate("{{country_name}}" := str_trim(str_to_lower({{country_name}})),
+           "{{country_name}}" := str_replace_all({{country_name}}, c("’"="'", 
                                                 "ô"="o",
                                                 "ã"="a",
                                                 "é"="e",
@@ -27,12 +26,18 @@ clean_df <- function(data, seq = F) {
                                                 "sao tome .*"="sao tome",
                                                 ".* south africa"="south africa",
                                                 ".* tanzania"="tanzania")),
-           country = country |> 
+           "{{country_name}}" := {{country_name}} |> 
              replace_values(
                "swaziland" ~ "eswatini",
                "congo" ~ "rep. of the congo",
                "dem. rep. of the congo" ~ "drc"
-               )) |> 
+             ))
+}
+
+clean_df <- function(data, seq = F) {
+  d <- data |> 
+    janitor::clean_names() |> 
+    standardize_countries() |> 
     filter_out(is.na(country) | country=="?") 
     
   if(seq) {
@@ -61,9 +66,9 @@ clean_df <- function(data, seq = F) {
 
 country_rename <- function(var){
     case_when(
-      {{ var }} == "drc" ~ "DRC", 
-      str_detect({{ var }},"cote") ~ "Cote d'Ivoire",
-      T ~ str_to_title({{ var }}))
+      str_to_lower({{ var }}) == "drc" ~ "DRC", 
+      str_detect(str_to_lower({{ var }}),"cote") ~ "Cote d'Ivoire",
+      T ~ str_replace(str_to_title({{ var }}), "Of The", "of the"))
 }
 
 ### Stan prep----
@@ -185,22 +190,34 @@ make_single_edges <- function(edge_list) {
 pd <- position_dodge(width = 1e-6)
 
 #trace plots
-traceplot <- function(obj = model_objs$model_draws, pars){
-  bayesplot::mcmc_trace(obj, regex_pars = pars)  +
+traceplot <- function(obj = model_objs$model_draws, pars, warmup = F){
+  p <- bayesplot::mcmc_trace(obj, regex_pars = pars)  +
     ggplot2::scale_color_discrete() +
     theme(legend.position = "bottom",
           text = element_text(family = "Times New Roman"))
+  if(warmup){
+    p <- p  + theme(panel.background = element_rect(fill = "grey85"))
+  }
+  return(p)
+}
+
+var_summ <- function(var, obj = model_objs$model_draws){
+  ids <- which(str_detect(names(obj), var)) 
+  df <- posterior::summarize_draws(obj[ids])
+  return(df)
 }
 
 #parameter summaries
 model_fit_summary <- function(var, true_val=NULL, name = "mean", ...){
-  if(is.null(true_val)){
-    true_val <- NA
+
+  df <- var_summ(var) 
+  
+  if(!is.null(true_val)){
+    df <- df |> 
+      mutate(true = true_val) |>  
+      dplyr::select(true, everything()) 
   }
-  df <- model_objs$var_summary |> 
-    filter(variable==var) |> 
-    mutate(true = true_val) |>  
-    dplyr::select(true, mean, q5, q95, rhat, ess_bulk, ess_tail) 
+  
   if(name!="mean"){
     nameq <- sym(str_c("mean_",str_remove_all(var,"\\[.*")))
     df <- df |> 
@@ -229,9 +246,9 @@ translate_cols <- function(df, min = min_year, sim = simulate, locs = countries_
 
 #output dataframes
 poststan_df <- function(var, state = T){
+  df <- var_summ(var)
   if(state){
-    d <- model_objs$var_summary |> 
-      filter(str_detect(variable, var)) |> 
+    d <- df |> 
       mutate(strain = str_extract(variable, "(?<=\\[)[0-9]+(?=,)"),
              state = as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=,)"))-1,
              ind = str_extract(variable, "(?<=,)[0-9]+(?=\\])") |> as.numeric(),
@@ -240,8 +257,7 @@ poststan_df <- function(var, state = T){
       filter(state==1) |> 
       dplyr::select(-state)
   }else{
-    d <- model_objs$var_summary |> 
-      filter(str_detect(variable, var)) |> 
+    d <- df |> 
       mutate(strain = str_extract(variable, "(?<=,)[0-9]+(?=\\])"),
              ind = str_extract(variable, "(?<=\\[)[0-9]+(?=,)") |> as.numeric(),
              location = str_c("loc-", spatial_objs$map_to_location[ind]),
@@ -303,13 +319,15 @@ list_countries <- function(data){
   return(df)
 }
 
-norm_func <- function(measure, type = c("mean", "robust", "standard")){
+normalize_measure <- function(measure, type = c("mean", "robust", "standard")){
   if(type=="mean"){
-    x <- ({{measure}}-mean({{measure}}, na.rm = T))/(max({{measure}}, na.rm = T)-min({{measure}}, na.rm = T))
+    x <- as.numeric(({{measure}}-mean({{measure}}, na.rm = T)) / 
+      (max({{measure}}, na.rm = T)-min({{measure}}, na.rm = T)))
   }else if(type=="robust"){
-    x <- ({{measure}}-median({{measure}}, na.rm = T))/(quantile({{measure}}, p = 0.75, na.rm = T)-quantile({{measure}}, p = 0.25, na.rm = T))
+    x <- as.numeric(({{measure}}-median({{measure}}, na.rm = T)) / 
+      (quantile({{measure}}, p = 0.75, na.rm = T)-quantile({{measure}}, p = 0.25, na.rm = T)))
   }else{
-    x <- scale({{measure}})
+    x <- as.numeric(scale({{measure}}))
   }
 }
 
@@ -325,15 +343,15 @@ calc_cluster_metrics <- function(data, measure, metric_name, log_measure = NULL)
     mutate(inv_met = if_else({{measure}}==0, 1/({{measure}}+1e-7), 1/{{measure}}),
            inv_log_met = 1/log_met,
            #normalize 
-           met_norm = norm_func({{measure}}, "standard"),
-           met_norm2 = norm_func({{measure}}, "mean"),
-           met_norm_robust = norm_func({{measure}}, "robust"),
-           log_met_norm = norm_func(log_met, "standard"),
-           log_met_norm2 = norm_func(log_met, "mean"),
-           log_met_norm_robust = norm_func(log_met, "robust"),
+           met_norm = normalize_measure({{measure}}, "standard"),
+           met_norm2 = normalize_measure({{measure}}, "mean"),
+           met_norm_robust = normalize_measure({{measure}}, "robust"),
+           log_met_norm = normalize_measure(log_met, "standard"),
+           log_met_norm2 = normalize_measure(log_met, "mean"),
+           log_met_norm_robust = normalize_measure(log_met, "robust"),
            #inverse metric as dissimilarity measure
-           inv_met_norm = norm_func(inv_met, "standard"),
-           inv_log_met_norm = norm_func(inv_log_met, "standard"))
+           inv_met_norm = normalize_measure(inv_met, "standard"),
+           inv_log_met_norm = normalize_measure(inv_log_met, "standard"))
   names(d) <- str_replace_all(names(d), "_met", glue("_{metric_name}"))
   names(d) <- str_replace_all(names(d), "met_", glue("{metric_name}_"))
   return(d)
@@ -366,6 +384,43 @@ diff_metric_matrix_func <- function(data, metric, country_list = countries){
   return(mat)
 }
 
+#for mapping, weight edges by median among runs with indicator=1
+#for clustering, multiply rate by indicator for edge weights
+phylo_prep_func <- function(data = phylo2, summ = F){
+  df <- data |> 
+    rename(rate = location_rates) |> 
+    #for clustering, multiply rate by indicator for edge weights
+    mutate(clust_rate = rate*location_indicators,
+           log_clust_rate = log(if_else(location_indicators==1,rate*location_indicators,
+                                        min_supported_rate/2))) |> 
+    group_by(countries) |>
+    #calculate the percentage of runs where edge is supported
+    mutate(ind_pct = sum(location_indicators)/n()) |>
+    ungroup()
+  if(summ){
+    df <- df |>
+      group_by(country1, country2) |> 
+      mutate(clust_rate = median(clust_rate),
+             log_clust_rate = median(log_clust_rate)) |> 
+      ungroup() |> 
+      #for mapping, weight edges by median among runs with indicator=1
+      mutate(rate = if_else(location_indicators==1, rate, as.numeric(NA))) |> 
+      summarize(rate = median(rate, na.rm = T), .by=c(country1, country2, ind_pct, 
+                                                      clust_rate, log_clust_rate)) |> 
+      ungroup() 
+  }
+  d <- df |> 
+    #for mapping, scale by % supported
+    calc_cluster_metrics(measure = rate*ind_pct, metric_name = "rate") |> 
+    calc_cluster_metrics(measure = clust_rate, metric_name = "clust_rate", log_measure = "log_clust_rate") |>
+    left_join(phylo_edges |> select(starts_with(c("n", "country"))),
+              by = c("country1", "country2")) |>
+    select(countries, starts_with("n"), everything()) |>
+    arrange(n) |>
+    distinct()
+  return(d)
+}
+
 ##### Heatmap order----
 # heatmap_order <- c("Guinea", "Sierra Leone", "Liberia", "Mauritania", "Guinea-Bissau",
 #                    "Senegal", "Cote D'ivoire", "Mali", "Togo",
@@ -377,35 +432,33 @@ diff_metric_matrix_func <- function(data, metric, country_list = countries){
 #                    "Botswana", "Zimbabwe", "Malawi", "Mozambique", "Eswatini", "Lesotho", "South Africa")
 
 # Used for Figs 3, S1, S3
-heatmap_order <-  c("Liberia", "Cote d'Ivoire", "Guinea", "Guinea-Bissau", 
-                    "Mali", "Mauritania", "Senegal", "Sierra Leone", "Benin", 
-                    "Burkina Faso", "Togo", "Nigeria", "Cameroon", "Ghana",  
-                    "Chad", "Equatorial Guinea", "Niger", "Rep. of the Congo", 
-                    "Central African Rep.", "Gabon", "Sao Tome", 
-                    "Somalia",  "Ethiopia", "Eritrea", "Djibouti", 
-                    "Rwanda", "Sudan", "South Sudan", "Uganda", "DRC", 
-                    "Burundi", "Kenya", "Tanzania", "Zambia", 
-                    "Angola", "Comoros", "Madagascar", "Malawi", 
-                    "Mozambique", "Zimbabwe", "South Africa", "Eswatini", 
-                    "Lesotho", "Botswana", "Namibia")  
+heatmap_order <-  c("Guinea-Bissau", "Gambia", "Senegal", "Sierra Leone","Guinea", 
+                     "Liberia", "Cote d'Ivoire", "Mali", "Mauritania", "Benin", 
+                    "Burkina Faso", "Togo", "Ghana", "Nigeria", "Cameroon", 
+                    "Chad", "Niger", "Equatorial Guinea", "Gabon", "Sao Tome", 
+                    "Rep. of the Congo", "Central African Rep.", "DRC", 
+                    "Sudan", "South Sudan", "Somalia",  "Eritrea", "Djibouti", 
+                    "Ethiopia", "Rwanda", "Uganda", "Kenya", "Tanzania", "Zambia", 
+                    "Burundi", "Malawi", "Comoros", "Madagascar","Angola", 
+                    "Mozambique", "Namibia", "Botswana", "Zimbabwe", 
+                    "South Africa", "Eswatini", "Lesotho")  
 
 # Combining Sudan & South Sudan (Used for Figs 4-5)
-heatmap_order_comb <-  c("Liberia", "Cote d'Ivoire", "Guinea", "Guinea-Bissau", 
-                    "Mali", "Mauritania", "Senegal", "Sierra Leone", "Benin", 
-                    "Burkina Faso", "Togo", "Nigeria", "Cameroon", "Ghana",  
-                    "Chad", "Equatorial Guinea", "Niger", "Rep. of the Congo", 
-                    "Central African Rep.", "Gabon", "Sao Tome", 
-                    "Somalia",  "Ethiopia", "Eritrea", "Djibouti", 
-                    "Rwanda", "Sudan & South Sudan", "Uganda", "DRC", 
-                    "Burundi", "Kenya", "Tanzania", "Zambia", 
-                    "Angola", "Comoros", "Madagascar", "Malawi", 
-                    "Mozambique", "Zimbabwe", "South Africa", "Eswatini", 
-                    "Lesotho", "Botswana", "Namibia")  
+heatmap_order_comb <- c("Guinea-Bissau", "Gambia", "Senegal", "Sierra Leone","Guinea", 
+                        "Liberia", "Cote d'Ivoire", "Mali", "Mauritania", "Benin", 
+                        "Burkina Faso", "Togo", "Ghana", "Nigeria", "Cameroon", 
+                        "Chad", "Niger", "Equatorial Guinea", "Gabon", "Sao Tome", 
+                        "Rep. of the Congo", "Central African Rep.", "DRC", 
+                        "Sudan & South Sudan", "Somalia",  "Eritrea", "Djibouti", 
+                        "Ethiopia", "Rwanda", "Uganda", "Kenya", "Tanzania", "Zambia", 
+                        "Burundi", "Malawi", "Comoros", "Madagascar","Angola", 
+                        "Mozambique", "Namibia", "Botswana", "Zimbabwe", 
+                        "South Africa", "Eswatini", "Lesotho")  
 
 ### Outbreak Simulation functions----
 
-pull_params <- function(var){
-  connectivity$post_warmup_draws  |> 
+pull_params <- function(var, obj){
+  {{obj}} |> 
     select(starts_with(var))
 }
 
@@ -453,11 +506,11 @@ sim_spread_func <- function(simnum, loc_int, yrs = n_time, n_M = M,
           ji = sp$map_from_edge[j,i]
           
           #update with introduction rate, cases in j, connectivity, & presence in j
-          phi[i,t] = phi[i,t] * (1-(1-exp(-(cases[j,t-1]^eta * xi[ji]))))
+          phi[i,t] = phi[i,t] * exp(-(cases[j,t-1]^eta * xi[ji]))
           
         }#end other country loop
         
-        phi[i,t] = phi[i,t] * (1-(1-exp(-(cases[i,t-1]^eta * delta))))
+        phi[i,t] = phi[i,t] * exp(-(cases[i,t-1]^eta * delta))
         
         #probability of colonization -> probability of presence
         alpha[i,t] = 1 - phi[i,t] 
@@ -482,7 +535,7 @@ sim_spread_func <- function(simnum, loc_int, yrs = n_time, n_M = M,
       ij = sp$map_from_edge[i,j]
       
       #update with introduction rate, cases in j, connectivity, & presence in j
-      phi[j,t] = 1-(1-exp(-(cases[i,t-1]^eta * xi[ij])))
+      phi[j,t] = exp(-(cases[i,t-1]^eta * xi[ij]))
       #probability of colonization -> probability of presence
       alpha[j,t] = 1 - phi[j,t] 
       
@@ -553,7 +606,7 @@ outbreak_df_func <- function(parameter, label, downstream = T){
                  names_to = "time",
                  values_to = label) %>% 
     mutate(time = as.numeric(str_remove_all(time, "time-"))) |> 
-    translate_func(min = 1) 
+    translate_cols(min = 1) 
   arrival <- arrival_func(pred)
   if(downstream){
     return(arrival)
@@ -613,12 +666,17 @@ if(!exists("sep_sudan")){
 }
 
 #sampling schemes
+if(!exists("which_obs")){
+  # sampling_options <- c("all_data", "post_1990", "post_2000")
+   which_obs <- "all_data"
+}
+#sampling schemes
 if(!exists("sampling")){
   # sampling_options <- c("all_data", "post_1990", "post_2000")
-  sampling <- "all_data"
+  sampling <- which_obs
 }
 if(!exists("min_year")){
-  min_year <- get_min_year(sampling)
+  min_year <- get_min_year(which_obs)
 }
 if(!exists("downsample_random")){
   downsample_random <- F 
@@ -635,6 +693,9 @@ if(downsample_random){
 if(!exists("test_subset")){
   #whether to subset
   test_subset <- F
+}
+if(test_subset){
+  sampling <- glue::glue("test_subset_post{min_year}")
 }
 #simulation to test HMM 
 if(!exists("simulate", mode="character")){
@@ -717,7 +778,7 @@ case_lineage_plot_theme <- list(theme(text = element_text(family = "serif"),
                                       axis.title.y = element_blank(),
                                       axis.text = element_text(size = 5.5),
                                       axis.ticks = element_line(linewidth = 0.01),
-                                      axis.ticks.length = unit(0.08,"cm"),
+                                      axis.ticks.length = unit(0.06,"cm"),
                                       axis.line = element_line(linewidth = 0.08),
                                       # Legend
                                       legend.position = "bottom",
@@ -777,10 +838,9 @@ prev_bar_plot <- function(data, y_var, te_var){
                       breaks = c(pub_te_order[-length(pub_te_order)], "Unsequenced"),
                       drop = F) +
     ylab("Reported Cholera Cases") +
-    labs(color = "Lineage",
-         fill = "Lineage") +
-    guides(fill=guide_legend(nrow=1, title.position = "left", drop = F),
-           color=guide_legend(nrow=1, title.position = "left", drop = F)) +
+    labs(fill = "Lineage") +
+    guides(fill=guide_legend(nrow=1, title.position = "left"),
+           color=guide_legend(nrow=1, title.position = "left")) +
     theme_classic() +
     theme(text = element_text(family = "serif"),
           legend.position = "bottom",
@@ -881,8 +941,8 @@ cases_lineages_plot <- function(case_data, lineage_data){
   }
 }
 
-secondary_risk_map <- function(country_list, edgelist){
-  map(country_order[which(country_order %in% 
+secondary_risk_map <- function(country_list, edgelist = hmm_edges){
+  purrr::map(country_order[which(country_order %in% 
                             {{country_list}}$seed_country)], 
       ~ {
         ggplot() + 
@@ -913,9 +973,9 @@ secondary_risk_map <- function(country_list, edgelist){
                                      limits = c(min(edgelist$log_xi_norm),
                                                 max(edgelist$log_xi_norm))) +
           guides(linewidth = "none", 
-                 fill = guide_colorbar(title = "Risk of outbreak\nin following year", nrow = 1),
+                 fill = guide_colorbar(title = "Risk of outbreak\nin following year"),
                  alpha = "none",
-                 color = guide_colorbar(title = "Standardized Connectivity\nMeasure", nrow = 1)) +
+                 color = guide_colorbar(title = "Standardized Connectivity\nMeasure")) +
           theme(text = element_text(family = "serif"),
                 legend.position = "none",
                 legend.text = element_text(size = 7),
