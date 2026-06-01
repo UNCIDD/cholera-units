@@ -14,7 +14,7 @@ source(here("notebooks/generate_reports", "default_params.R"), local = T)
 which_obs <- "post_1990"
 run_model <- T
 # save_warmup <- F
-
+dropT13 <- T
 
 #Render----
 

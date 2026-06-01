@@ -59,7 +59,8 @@ subregions <- read_delim(here("data/raw/UN_regions.csv"),
                                      "Middle", "Central")) |> 
   select(subregion, country) |> 
   clean_df() |> 
-  mutate(subregion = str_to_lower(subregion))
+  mutate(subregion = str_to_lower(subregion)) |> 
+  filter_out(country %in% islands_exclude)
 
 ###Shapefile----
 full_africa_sf <- gisco_get_countries(region = "Africa") |> 
@@ -92,6 +93,7 @@ full_africa_sf <- full_africa_sf |>
 #-----------------------------------------------------------#
 
 subregions_w <- subregions |> 
+  filter_out(country %in% islands_exclude) |> 
   group_by(subregion) |> 
   mutate(n = row_number()) |> 
   pivot_wider(id_cols = "subregion", values_from = country, 
@@ -107,7 +109,8 @@ introductions <- introductions_raw |>
   clean_df() |> 
   left_join(subregions_w, by = c("country" = "subregion")) |> 
   pivot_longer(cols = starts_with("cntry"), names_to = "n", 
-               values_to= "country_sr", names_prefix = "cntry") |> 
+               values_to= "country_sr", names_prefix = "cntry",
+               values_drop_na = T) |> 
   select(-n) |> 
   distinct() |> 
   mutate(region = if_else(country %in% subregions$subregion, 1, 0),

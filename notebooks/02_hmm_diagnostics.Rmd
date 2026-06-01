@@ -19,6 +19,7 @@ params:
   sample_fraction: 0.2
   save_warmup: F
   sep_sudan: F
+  dropT13: T
 ---
 
 ```{r setup, include=FALSE}
@@ -51,6 +52,7 @@ sample_fraction <- params$sample_fraction
 sampling <- params$which_obs
 min_year <- params$min_year
 sep_sudan <- params$sep_sudan
+dropT13 <- params$dropT13
 
 simulate <- F
 test_subset <- F
@@ -92,7 +94,7 @@ knitr::read_chunk(here("analysis","06_post_hmm_stats.R"))
 ```{r , message = F, echo=F, include = F}
 
 # parameter names
-pars <- c("lp__", "eta", "kappa", "zeta", "tau[1]", "tau[2]", "delta") 
+pars <- c("eta", "kappa", "zeta", "tau[1]", "tau[2]", "delta") 
 
 color_scheme_set("blue")
 
@@ -147,7 +149,7 @@ mcmc_pairs(model_objs$model_draws, pars = pars,
 
 ```{r, message = F, fig.height = 8}
 
-mcmc_rhat(model_objs$rhats[pars[-1]]) + yaxis_text(hjust = 1)
+mcmc_rhat(model_objs$rhats[pars]) + yaxis_text(hjust = 1)
 
 ```
 
@@ -159,7 +161,7 @@ mcmc_rhat(model_objs$rhats[pars[-1]]) + yaxis_text(hjust = 1)
 
 ```{r, message = F, fig.height = 8}
 
-mcmc_neff(model_objs$neffs[pars[-1]]) + yaxis_text(hjust = 1)
+mcmc_neff(model_objs$neffs[pars]) + yaxis_text(hjust = 1)
 
 ```
 
@@ -173,7 +175,10 @@ mcmc_neff(model_objs$neffs[pars[-1]]) + yaxis_text(hjust = 1)
 
 ```{r, message = F}
 
-model_fit_summary("kappa") %>% select(-true)
+model_fit_summary("kappa") 
+if(save_warmup){
+  traceplot(obj = model_objs$warmup, "kappa", warmup = T)
+}
 traceplot(obj = model_objs$model_draws, "kappa")
 mcmc_hist(model_objs$model_draws, pars = "kappa")
 
@@ -184,7 +189,11 @@ mcmc_hist(model_objs$model_draws, pars = "kappa")
 ##### Zeta (distance transformation)
 
 ```{r, message = F}
-model_fit_summary("zeta") %>% select(-true)
+
+model_fit_summary("zeta") 
+if(save_warmup){
+  traceplot(obj = model_objs$warmup, "zeta", warmup = T)
+}
 traceplot(obj = model_objs$model_draws, "zeta")
 mcmc_hist(model_objs$model_draws, pars = "zeta")
 
@@ -196,8 +205,10 @@ mcmc_hist(model_objs$model_draws, pars = "zeta")
 
 ```{r, message = F}
 
-model_fit_summary("tau[1]") %>% select(-true)
-model_fit_summary("tau[2]") %>% select(-true)
+model_fit_summary("tau")
+if(save_warmup){
+  traceplot(obj = model_objs$warmup, "tau", warmup = T)
+}
 traceplot(obj = model_objs$model_draws, "tau")
 mcmc_hist(model_objs$model_draws, regex_pars = "tau")
 
@@ -209,7 +220,10 @@ mcmc_hist(model_objs$model_draws, regex_pars = "tau")
 
 ```{r, message = F}
 
-model_fit_summary("eta") %>% select(-true)
+model_fit_summary("^eta") 
+if(save_warmup){
+  traceplot(obj = model_objs$warmup, "^eta", warmup = T)
+}
 traceplot(obj = model_objs$model_draws, "^eta")
 mcmc_hist(model_objs$model_draws, pars = "eta")
 
@@ -221,10 +235,13 @@ mcmc_hist(model_objs$model_draws, pars = "eta")
 
 ```{r, message = F}
 
-purrr::map(str_c("e_i[", 1:M, "]"), model_fit_summary) |> 
-  set_names(str_c("e_i[", 1:M, "]")) |> 
-  bind_rows(.id = "Parameter") |> select(-true) |> 
+model_fit_summary("e_i") |> 
+  bind_rows() |> 
   print(n=M)
+if(save_warmup){
+  traceplot(obj = model_objs$warmup, "e_i", warmup = T)
+}
+traceplot(obj = model_objs$model_draws, "e_i")
 
 ```
 
@@ -234,7 +251,10 @@ purrr::map(str_c("e_i[", 1:M, "]"), model_fit_summary) |>
 
 ```{r, message = F}
 
-model_fit_summary("delta") %>% select(-true)
+model_fit_summary("delta") 
+if(save_warmup){
+  traceplot(obj = model_objs$warmup, "delta", warmup = T)
+}
 traceplot(obj = model_objs$model_draws, "delta")
 mcmc_hist(model_objs$model_draws, pars = "delta")
 
@@ -392,26 +412,26 @@ ggplot(data = pred_gamma) +
           legend.position = "bottom",
           ggside.axis.text.y = element_blank())
 
-pred_gamma_tot <- pred_gamma |> 
-  group_by(te, year) |> 
-  mutate(prob = sum(mean)) |> 
-  ungroup() |> 
-  select(te, year, prob) |> 
-  distinct() |> 
-  arrange(te, year)
-
-ggplot() +
-  geom_line(aes(x = year, y = prob, color = te), 
-            position = position_dodge(0.2), data = pred_gamma_tot) +
-  scale_x_continuous(breaks = scales::pretty_breaks()) +
-  labs(color = "TE",
-  fill = "TE") + 
-  plot_colors +
-  guides(color = guide_legend(nrow = 2), fill =guide_legend(nrow = 2)) +
-  theme_bw() +
-  theme(text = element_text(size = 8), 
-        legend.position = "bottom",
-        ggside.axis.text.y = element_blank())
+# pred_gamma_tot <- pred_gamma |> 
+#   group_by(te, year) |> 
+#   mutate(prob = sum(mean)) |> 
+#   ungroup() |> 
+#   select(te, year, prob) |> 
+#   distinct() |> 
+#   arrange(te, year)
+# 
+# ggplot() +
+#   geom_line(aes(x = year, y = prob, color = te), 
+#             position = position_dodge(0.2), data = pred_gamma_tot) +
+#   scale_x_continuous(breaks = scales::pretty_breaks()) +
+#   labs(color = "TE",
+#   fill = "TE") + 
+#   plot_colors +
+#   guides(color = guide_legend(nrow = 2), fill =guide_legend(nrow = 2)) +
+#   theme_bw() +
+#   theme(text = element_text(size = 8), 
+#         legend.position = "bottom",
+#         ggside.axis.text.y = element_blank())
 
 ```
 

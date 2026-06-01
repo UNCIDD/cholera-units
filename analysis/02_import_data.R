@@ -66,6 +66,21 @@ if(sep_sudan==F){
     filter(!is.na(te) | (is.na(te) & tot_samples==0))
 }
 
+if(dropT13){
+  cases_lineages_full <- cases_lineages_full |> 
+    group_by(country, year) |> 
+    mutate(n = n()) |> 
+    ungroup() |> 
+    filter_out(country=="kenya" & year<2015 & te=="T13" & n>1) |> 
+    mutate(samples = if_else(country=="kenya" & year<2015 & te=="T13" & n==1, 0, samples),
+           tot_samples = if_else(country=="kenya" & year<2015 & te=="T13" & n==1, 0, tot_samples),
+           te = if_else(country=="kenya" & year<2015 & te=="T13" & n==1, NA, te)) |> 
+    group_by(country, year) |> 
+    mutate(tot_samples = if_else(tot_samples>0, sum(samples), tot_samples)) |> 
+    ungroup() |> 
+    distinct() 
+}
+
 cases_lineages <- cases_lineages_full |> 
   # subset by year if min_year is updated 
   filter(year>=min_year) |> 

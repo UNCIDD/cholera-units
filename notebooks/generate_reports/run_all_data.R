@@ -17,6 +17,7 @@ run_model <- T
 # stan_iter_warmup <- 2000
 # min_year <- 1990
 # save_warmup <- F
+dropT13 <- T
 
 source(here("analysis","05_run_hmm.R"), local = T, echo = TRUE, print.eval = TRUE)
 

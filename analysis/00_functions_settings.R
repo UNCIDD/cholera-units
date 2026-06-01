@@ -439,7 +439,7 @@ heatmap_order <-  c("Guinea-Bissau", "Gambia", "Senegal", "Sierra Leone","Guinea
                     "Rep. of the Congo", "Central African Rep.", "DRC", 
                     "Sudan", "South Sudan", "Somalia",  "Eritrea", "Djibouti", 
                     "Ethiopia", "Rwanda", "Uganda", "Kenya", "Tanzania", "Zambia", 
-                    "Burundi", "Malawi", "Comoros", "Madagascar","Angola", 
+                    "Burundi", "Comoros", "Madagascar","Angola", "Malawi", 
                     "Mozambique", "Namibia", "Botswana", "Zimbabwe", 
                     "South Africa", "Eswatini", "Lesotho")  
 
@@ -628,7 +628,8 @@ pub_te_order <- c(str_c("AFR", c(1:13, 15:17)), "Sporadic Outbreak")
 north_africa_exclude <- c("algeria", "egypt", "libya", "morocco", "tunisia", "western sahara")
 islands_exclude <- c("british indian ocean territory", "french southern and antarctic lands", 
                      "saint helena, ascension and tristan da cunha", "mauritius", "seychelles",
-                     "cape verde", "cabo verde")
+                     "cape verde", "cabo verde", "french southern territories", "mayotte",
+                     "reunion", "saint helena")
 
 #parameters
 
@@ -693,6 +694,10 @@ if(downsample_random){
 if(!exists("test_subset")){
   #whether to subset
   test_subset <- F
+}
+if(!exists("dropT13")){
+  #whether to subset
+  dropT13 <- T
 }
 if(test_subset){
   sampling <- glue::glue("test_subset_post{min_year}")

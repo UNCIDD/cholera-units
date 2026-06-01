@@ -20,6 +20,7 @@ params:
   sample_fraction: 0.2
   save_warmup: T
   sep_sudan: F
+  dropT13: T
   
 ---
 
@@ -60,6 +61,7 @@ sample_fraction <- params$sample_fraction
 sampling <- params$which_obs
 min_year <- params$min_year
 sep_sudan <- params$sep_sudan
+dropT13 <- params$dropT13
 
 # simulate <- F
 # test_subset <- T
@@ -155,7 +157,7 @@ Inferred strain prevalence by country over time.
 $\kappa$ parameter
 
 ```{r}
-model_fit_summary("kappa") |> select(-true)
+model_fit_summary("kappa") 
 traceplot(obj = model_objs$model_draws, "kappa")
 mcmc_hist(model_objs$model_draws, pars = "kappa")
 ```

@@ -8,7 +8,7 @@ downsample_random <- F
 downsample_seed <- 525
 sample_fraction <- 0.8
 
-seed <- 22
+seed <- 6845
 run_model <- F
 stan_iter_warmup <- 2000
 stan_iter_sample <- 2000
@@ -22,6 +22,7 @@ which_obs <- "all_data"
 title_info <- NULL
 
 sep_sudan <- F
+dropT13 <- T
 
 
 
