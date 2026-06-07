@@ -76,7 +76,7 @@ if(run_model){
 ## ---- init
 
 # parameter names
-pars <- c("lp__", "eta", "kappa", "zeta", "tau[1]", "tau[2]", "delta") 
+pars <- c("eta", "kappa", "zeta", "tau[1]", "tau[2]", "delta") 
 
 color_scheme_set("blue")
 
@@ -84,11 +84,11 @@ color_scheme_set("blue")
 model_objs$diagnostic_summary
 
 #Neff ratio
-model_objs$neffs[pars[-1]]
+model_objs$neffs[pars]
 
 #Neffs & rhats for main parameters
-mcmc_neff(model_objs$neffs[pars[-1]]) + yaxis_text(hjust = 1)
-mcmc_rhat(model_objs$rhats[pars[-1]]) + yaxis_text(hjust = 1)
+mcmc_neff(model_objs$neffs[pars]) + yaxis_text(hjust = 1)
+mcmc_rhat(model_objs$rhats[pars]) + yaxis_text(hjust = 1)
 
 #Neffs & rhats for omega parameters
 w_pars <- model_objs$metadata$model_params[str_which(model_objs$metadata$model_params, "^w\\[")]
@@ -138,7 +138,6 @@ mcmc_rhat(pi_rhat) +
 mcmc_acf(model_objs$model_draws, pars = pars)
 
 # Trace plots
-traceplot(obj = model_objs$model_draws, "lp_")
 traceplot(obj = model_objs$model_draws, "kappa")
 traceplot(obj = model_objs$model_draws, "zeta")
 traceplot(obj = model_objs$model_draws, "^eta") 
@@ -163,15 +162,12 @@ mcmc_pairs(model_objs$model_draws, pars = pars,
 ## B. Parameter summaries ----
 ## ---- param_summ
 
-purrr::map(pars[-1], model_fit_summary) |> 
-  set_names(pars[-1]) |> 
-  bind_rows(.id = "Parameter") |> select(-true) |> 
-  print(n=length(pars[-1]))
+pars_sm <- c("^eta", "kappa", "zeta", "tau", "^delta", "^e_i") 
 
-purrr::map(str_c("e_i[", 1:M, "]"), model_fit_summary) |> 
-  set_names(str_c("e_i[", 1:M, "]")) |> 
-  bind_rows(.id = "Parameter") |> select(-true) |> 
-  print(n=M)
+purrr::map(pars_sm, model_fit_summary) |> 
+  bind_rows() |> 
+  print(n=6+M)
+
 
 ## C. Datasets & Visualizations ----
 
@@ -324,11 +320,11 @@ prev_cases_plot
 ### Connectivity----
 
 ## ---- map_prep
-pred_w <- model_objs$var_summary |> 
-  filter(str_detect(variable, "^w")) |> 
+pred_w <- var_summ("^w") |> 
+  #filter(str_detect(variable, "^w")) |> 
   mutate(node_n = str_extract(variable, "(?<=\\[)[0-9]+"))
-pred_xi <- model_objs$var_summary |> 
-  filter(str_detect(variable, "^xi")) |>
+pred_xi <- var_summ("^xi", obj = xi_model_draws) |> 
+  #filter(str_detect(variable, "^xi")) |>
   mutate(node_n = str_extract(variable, "(?<=\\[)[0-9]+"))
 
 centroids <- st_centroid(africa_sf  |> 

@@ -1,3 +1,4 @@
+#-----------------------------------------------------------------#
 # Project: Defining epidemiologically relevant transmission
 #          units in Africa
 # File: 05_run_hmm.R
@@ -11,6 +12,9 @@
 library(tidyverse)
 library(cmdstanr)
 library(here)
+library(posterior)
+library(bayesplot)
+library(qs2)
 
 # test_subset <- T
 # min_year <- 1970
@@ -131,18 +135,13 @@ if(run_model){
   
   init_fun <- function() {
     list(
-      # keep these moderate and interior
       tau = c(0.3, 0.3),
       zeta_std = 0,
       kappa = 0.05,
-      log_delta = -2,
+      log_delta = -1,
       eta = 0.5,
-      
-      # keep probabilities away from boundaries
       e_i = runif(M, 0.2, 0.5),
-      pi_0 = matrix(runif(M * V, 0.05, 0.15), M, V),
-      w = rep(-2, stan_data$N_edges),
-      log_lambda = matrix(log(0.1), N, V)
+      pi_0 = matrix(runif(M * V, 0.05, 0.15), M, V)
     )
   }
   
@@ -155,9 +154,9 @@ if(run_model){
     parallel_chains = stan_chains,
     iter_warmup = stan_iter_warmup,
     iter_sampling = stan_iter_sample,
-    max_treedepth = 14L,
-    adapt_delta = .9,
-    refresh = 100,
+    max_treedepth = 12L,
+    adapt_delta = .8,
+    refresh = 10,
     save_warmup = save_warmup,
     show_messages = T)
   
@@ -165,14 +164,21 @@ if(run_model){
   vars <- c("lp__", "eta", "kappa", "zeta", "tau", "log_delta", "delta", "w", 
             "rho","alpha","pi_0","beta","gamma","lambda","lambda_star","prev_lambda",
             "pred_cases","zstar","e_i")
+  pars <- c("eta", "kappa", "zeta", "tau", "log_delta", "delta", "w", "e_i",
+            "pi_0")
+  
   
   model_objs <- list()
   model_objs$metadata <- model_fit$metadata()
   model_objs$diagnostic_summary <- model_fit$diagnostic_summary()
-  model_objs$model_draws <- model_fit$draws(inc_warmup = F, format = "draws_df", variables = vars)
-  model_objs$var_summary <- model_fit$summary(variables = c(vars, "xi"))
-  model_objs$neffs <- bayesplot::neff_ratio(model_fit, pars = vars)
-  model_objs$rhats <- bayesplot::rhat(model_fit, pars = vars)
+  model_objs$model_draws <- model_fit$draws(inc_warmup = save_warmup, format = "draws_df", variables = vars)
+  if(save_warmup){
+    model_objs$warmup <- subset_draws(model_objs$model_draws, iteration = 1:stan_iter_warmup)
+    model_objs$model_draws <- subset_draws(model_objs$model_draws,
+                                           iteration = (stan_iter_warmup+1):(stan_iter_warmup+stan_iter_sample))                                  
+  }
+  model_objs$neffs <- bayesplot::neff_ratio(model_fit, pars = pars)
+  model_objs$rhats <- bayesplot::rhat(model_fit, pars = pars)
   
   xi_model_draws <- model_fit$draws(variables = "xi", inc_warmup = F, format = "draws_df")
   
@@ -182,28 +188,6 @@ if(run_model){
   
 }
 
-## ---- save_model
 
-if(run_model){
-  
-  # parameter names
-  vars <- c("lp__", "eta", "kappa", "zeta", "tau", "log_delta", "delta", "w", 
-            "rho","alpha","pi_0","beta","gamma","lambda","lambda_star","prev_lambda",
-            "pred_cases","zstar","e_i")
-  
-  model_objs <- list()
-  model_objs$metadata <- model_fit$metadata()
-  model_objs$diagnostic_summary <- model_fit$diagnostic_summary()
-  model_objs$model_draws <- model_fit$draws(inc_warmup = F, format = "draws_df", variables = vars)
-  model_objs$var_summary <- model_fit$summary(variables = c(vars, "xi"))
-  model_objs$neffs <- bayesplot::neff_ratio(model_fit, pars = vars)
-  model_objs$rhats <- bayesplot::rhat(model_fit, pars = vars)
-  
-  xi_model_draws <- model_fit$draws(variables = "xi", inc_warmup = F, format = "draws_df")
-  
-  #save model object
-  qs2::qs_save(model_objs, glue::glue("{out_dir}/model_objs_{Sys.Date()}"))
-  qs2::qs_save(xi_model_draws, glue::glue("{xi_dir}/draws/xi_model_draws_{Sys.Date()}"))
-  
-}
+
 

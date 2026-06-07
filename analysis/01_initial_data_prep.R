@@ -109,8 +109,7 @@ introductions <- introductions_raw |>
   clean_df() |> 
   left_join(subregions_w, by = c("country" = "subregion")) |> 
   pivot_longer(cols = starts_with("cntry"), names_to = "n", 
-               values_to= "country_sr", names_prefix = "cntry",
-               values_drop_na = T) |> 
+               values_to= "country_sr", names_prefix = "cntry") |> 
   select(-n) |> 
   distinct() |> 
   mutate(region = if_else(country %in% subregions$subregion, 1, 0),
@@ -121,9 +120,11 @@ introductions <- introductions_raw |>
   mutate(dup = if_else(n>1 & !is.na(country_sr), 1, 0)) |> 
   ungroup() |> 
   filter(dup==0) |> 
+  filter_out(is.na(country)) |> 
   select(-country_sr, -n, -dup) |> 
   group_by(te, location_order) |> 
-  mutate(prob_dist = p/n()) |> 
+  mutate(prob_dist = p/n(),
+         prob_dist = if_else(prob_dist>0.99, 0.99,prob_dist)) |> 
   ungroup()
 
 #-----------------------------------------------------------#
