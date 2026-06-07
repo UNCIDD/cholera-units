@@ -5,9 +5,7 @@
 library(tidyverse)
 library(here)
 library(furrr)
-
-
-options(scipen = 999999999)
+library(qs2)
 
 # plan(multisession, workers = 4)
 plan(list(tweak(multisession, workers = 2), tweak(multisession, workers = I(8))))
@@ -15,9 +13,6 @@ plan(list(tweak(multisession, workers = 2), tweak(multisession, workers = I(8)))
 # which_obs <- "all_data"
 source(here("analysis","00_functions_settings.R"), local = T)
 
-
-#global options
-#set.seed(seed)
 
 if(!exists("nsamp")){
   nsamp <- 1000
@@ -32,18 +27,21 @@ if(!exists("secondary_outbreaks")){
   secondary_outbreaks <- T
 }
 
-
 ### Read data----
 source(here("analysis","02_import_data.R"), local = T) 
 source(here("analysis","04_hmm_setup.R"), local = T) 
 
 
 #Bring in connectivity measure (used as weight/metric for clustering) from model output
-model_runs <- file.mtime(paste0(xi_dir,"/draws/",list.files(paste0(xi_dir,"/draws/"))))
-connectivity <- qs2::qs_read(here::here(xi_dir,"draws",list.files(paste0(xi_dir,"/draws/")))[which(model_runs==max(model_runs))])
-model <- file.mtime(paste0(out_dir,"/",list.files(out_dir)))
-model <- qs2::qs_read(here::here(out_dir,list.files(out_dir))[which(model==max(model))])
+xi_files <- list.files(paste0(xi_dir,"/draws/"))
+xi_run_dates <- str_extract_all(xi_files, "(?<=draws_).*") |> list_c() |> as_date()
+xi_most_recent <- xi_files[which(xi_run_dates==max(xi_run_dates))]
+connectivity <- qs2::qs_read(here::here(xi_dir,"draws",xi_most_recent))
 
+model_files <- list.files(paste0(out_dir))
+model_run_dates <- str_extract_all(model_files, "(?<=objs_).*") |> list_c() |> as_date()
+most_recent_run <- str_c("model_objs_", model_run_dates[which(model_run_dates==max(model_run_dates))])
+model <- qs2::qs_read(here::here(out_dir,most_recent_run))
 
 
 ### Setup for simulation

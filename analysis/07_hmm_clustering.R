@@ -52,8 +52,11 @@ source(here("analysis","02_import_data.R"), local = T)
 sampling
 
 #Bring in connectivity measure (used as weight/metric for clustering) from model output
-model_runs <- file.mtime(paste0(xi_dir,"/draws/",list.files(paste0(xi_dir,"/draws/"))))
-xi_model_draws <- qs2::qs_read(here::here(xi_dir,"draws",list.files(paste0(xi_dir,"/draws/")))[which(model_runs==max(model_runs))])
+# model_run_times <- file.mtime(paste0(xi_dir,"/draws/",list.files(paste0(xi_dir,"/draws/"))))
+model_files <- list.files(paste0(xi_dir,"/draws/"))
+model_run_dates <- str_extract_all(model_files, "(?<=draws_).*") |> list_c() |> as_date()
+most_recent_run <- model_files[which(model_run_dates==max(model_run_dates))]
+xi_model_draws <- qs2::qs_read(here::here(xi_dir,"draws",most_recent_run))
 xi_model_draws <- xi_model_draws |> 
   select(-c(".chain",".iteration",".draw"))
 
