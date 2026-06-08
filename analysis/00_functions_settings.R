@@ -442,6 +442,16 @@ heatmap_order <-  c("Gambia", "Guinea-Bissau", "Senegal", "Sierra Leone","Guinea
                     "Burundi", "Comoros", "Madagascar", "Malawi", "Angola",
                     "Mozambique", "Zimbabwe", "South Africa", 
                     "Eswatini", "Lesotho", "Namibia", "Botswana")  
+heatmap_order_phylo <-  c("Gambia", "Guinea-Bissau", "Senegal", "Sierra Leone","Guinea", 
+                    "Liberia", "Cote d'Ivoire", "Mali", "Mauritania", "Benin", 
+                    "Burkina Faso", "Togo", "Ghana", "Nigeria", "Cameroon", 
+                    "Chad", "Niger", "Equatorial Guinea", "Gabon", "Sao Tome", 
+                    "Rep. of the Congo", "Central African Rep.", "DRC", 
+                    "Sudan", "South Sudan", "Somalia",  "Eritrea", "Ethiopia",  
+                    "Djibouti", "Rwanda", "Uganda", "Kenya", "Tanzania", "Zambia", 
+                    "Burundi", "Comoros", "Madagascar", "Angola", "Malawi", 
+                    "Mozambique", "Zimbabwe", "South Africa", 
+                    "Eswatini", "Lesotho", "Namibia", "Botswana")  
 
 # Combining Sudan & South Sudan (Used for Figs 4-5)
 heatmap_order_comb <- c("Gambia", "Guinea-Bissau", "Senegal", "Sierra Leone","Guinea", 
