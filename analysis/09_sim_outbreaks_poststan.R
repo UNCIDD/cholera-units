@@ -26,6 +26,13 @@ if(!exists("downstream_outbreaks")){
 if(!exists("secondary_outbreaks")){
   secondary_outbreaks <- T
 }
+if (!dir.exists(sim_dir)) {dir.create(sim_dir)}
+
+if(!exists("sim_all")){
+  sim_all <- T
+}
+
+show_progress <- F
 
 ### Read data----
 source(here("analysis","02_import_data.R"), local = T) 
@@ -58,6 +65,10 @@ epsilon <- 1e-7 #small number
 #single introduction of a single strain
 if(test_subset){
   seed_countries <- seed_countries[seed_countries %in% countries_subset]
+}
+
+if(sim_all){
+  seed_countries <- countries_subset
 }
 
 #Distribution of observed cases by country over time
@@ -98,11 +109,11 @@ if(downstream_outbreaks){
       furrr::future_map(1:nsamp, sim_spread_func,
                         loc_int = which(countries_subset==.x),
                         .options = furrr_options(seed = TRUE))}, 
-      .options = furrr_options(seed = TRUE), .progress = T)
+      .options = furrr_options(seed = TRUE), .progress = show_progress)
   downstream_pred <- furrr::future_map(sims_downstream, ~{
     d <- bind_rows(.x, .id = "draw")
   }, 
-  .options = furrr_options(seed = TRUE), .progress = T) |>
+  .options = furrr_options(seed = TRUE), .progress = show_progress) |>
     bind_rows(.id = "seed_country")
   toc()
 }
@@ -118,18 +129,16 @@ if(secondary_outbreaks){
                         loc_int = which(countries_subset==.x),
                         downstream = F,
                         .options = furrr_options(seed = TRUE))},
-      .options = furrr_options(seed = TRUE), .progress = T)
+      .options = furrr_options(seed = TRUE), .progress = show_progress)
   secondary_pred <- furrr::future_map(sims_secondary, ~{
     d <- bind_rows(.x, .id = "draw") |>
       secondary_func()}, 
-    .options = furrr_options(seed = TRUE), .progress = T) |>
+    .options = furrr_options(seed = TRUE), .progress = show_progress) |>
     bind_rows(.id = "seed_country")
   toc()
 }
 
 ## Save data ----
-
-# saveRDS(arrival_times, glue::glue("{sim_dir}/obs_arrival_times.rds"))
 
 if(downstream_outbreaks){
   saveRDS(sims_downstream, glue::glue("{sim_dir}/sim_downstream.rds"))
