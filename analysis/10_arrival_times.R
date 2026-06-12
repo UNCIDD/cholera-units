@@ -310,9 +310,9 @@ print(te_timing_obs_corr, n = nrow(te_timing_obs_corr))
 # Save figures---
 #-----------------------------------------------------------#
 
-ggsave("figure_S7_arrivals.pdf", plot = fig_S7_timings, width = 7, height = 6, dpi = 400,
+ggsave("Supplemental_FigS7_arrivals.pdf", plot = fig_S7_timings, width = 7, height = 6, dpi = 400,
        path = here::here("figures/manuscript_figures"))
-ggsave("figure_S7_arrivals.png", plot = fig_S7_timings, width = 7, height = 6, dpi = 400,
+ggsave("Supplemental_FigS7_arrivals.png", plot = fig_S7_timings, width = 7, height = 6, dpi = 400,
        path = here::here("figures/manuscript_figures"))
 
 

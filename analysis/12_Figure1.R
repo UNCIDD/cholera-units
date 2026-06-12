@@ -1,7 +1,14 @@
-#------------- Figure 1 -------------####
-#### Observed lineages & cases & attributable prevalence
+#-----------------------------------------------------------------#
+# Project: Defining epidemiologically relevant transmission
+#          units in Africa
+# File: 12_Figure1.R
+# Purpose: This script creates Figure 1 showing 
+#         Observed/inferred lineages & cases & attributable prevalence
+#-----------------------------------------------------------------#
 
-### Initialize----
+#-----------------------------------------------------------#
+# Initialize----
+#-----------------------------------------------------------#
 library(tidyverse)
 library(here)
 library(plotly)
@@ -14,11 +21,14 @@ source(here("analysis","00_functions_settings.R"), local = T)
 
 set.seed(seed)
 
-### 1A: Observed data----
-#### Read data----
+#-----------------------------------------------------------#
+# 1A: Observed data----
+#-----------------------------------------------------------#
+
+## Read data----
 source(here("analysis","02_import_data.R"), local = T) 
 
-#### Prep for plotting----
+## Prep for plotting----
 country_order <- sort(unique(country_rename(cases_lineages$country)), decreasing = T)
 
 cases_lineages <- cases_lineages |> 
@@ -58,15 +68,15 @@ cases_assign <- cases_lineages |>
   distinct() |> 
   arrange(year, te_assign)
 
-#### Figure 1A top: Assigned prevalence based on sequences----
+## Figure 1A top: Assigned prevalence based on sequences----
 
-## Figure 1A top larger panel - bar graph of assigned prevalence
+### Figure 1A top larger panel - bar graph of assigned prevalence----
 figure1a_top_bar <- cases_assign |> 
   prev_bar_plot(y_var = te_count, te_var = te_assign) +
   scale_x_continuous(limits = c(1970-0.5,2023+0.5), expand = c(0,0))
 figure1a_top_bar
 
-##Figure 1A top inset: case lineages assignments - donut plot
+### Figure 1A top inset: case lineages assignments - donut plot----
 figure1a_top_donut <- cases_assign |> 
   group_by(te_assign) |> 
   summarize(te_count = sum(te_count)) |> 
@@ -74,7 +84,7 @@ figure1a_top_donut <- cases_assign |>
   prev_donut_plot() 
 figure1a_top_donut
 
-#### Figure 1A bottom: observed cases by country with observed lineages----
+## Figure 1A bottom: observed cases by country with observed lineages----
 
 cases_country_assign <- cases_lineages |> 
   select(country, year, te, cases) |> 
@@ -128,9 +138,11 @@ figure_1a_bottom <- ggplot(data = cases_country_assign,
          color = guide_legend(nrow = 1))
 figure_1a_bottom
 
+#-----------------------------------------------------------#
+# 1B: Inferred data----
+#-----------------------------------------------------------#
 
-### 1B: Inferred data----
-#### Read data----
+## Read data----
 
 countries <- all_countries
 M <- length(countries) 
@@ -146,8 +158,7 @@ gen_cases_prev <- readRDS(str_c(xi_dir, "/gen_pred_cases.rds")) |>
   clean_df() |> 
   mutate(te = factor(te, levels = te_order, labels = pub_te_order))
 
-#### Prep for plotting----
-
+## Prep for plotting----
 cases_lineages_hmm2 <- cases_lineages_hmm |> 
   select(country, year, te, source) |> 
   distinct() |> 
@@ -197,9 +208,9 @@ cases_filled <- cases_country_assign |>
   ungroup() 
 
 
-#### Figure 1B top: Assigned prevalence based on sequences----
+## Figure 1B top: Assigned prevalence based on sequences----
 
-## Figure 1B top larger panel: bar graph of assigned prevalence
+### Figure 1B top larger panel: bar graph of assigned prevalence----
 figure1b_top_bar <- cases_prev_pred |> 
   select(country, year, mean, te) |> 
   distinct() |> 
@@ -213,7 +224,7 @@ figure1b_top_bar <- cases_prev_pred |>
         plot.margin = unit(c(t=0.1, r=0.05, b=0.05, l=0.4), "cm"))
 figure1b_top_bar
 
-##Figure 1B top inset: case lineages assignments - donut plot
+### Figure 1B top inset: case lineages assignments - donut plot----
 figure1b_top_donut <- cases_prev_pred |> 
   group_by(te) |> 
   summarize(te_count = sum(mean)) |> 
@@ -221,7 +232,7 @@ figure1b_top_donut <- cases_prev_pred |>
   prev_donut_plot(te_var = te)
 figure1b_top_donut
 
-#### Figure 1B bottom: observed cases by country with observed & inferred lineages----
+## Figure 1B bottom: observed cases by country with observed & inferred lineages----
 
 figure_1b_bottom <- ggplot(data = cases_filled, 
                            aes(x = year, y = country, color = te_assign)) +
@@ -280,9 +291,11 @@ figure_1b_bottom <- ggplot(data = cases_filled,
         plot.margin = unit(c(t=0.1, r=0.05, b=0.05, l=0.4), "cm"))
 figure_1b_bottom
 
-### Arrange plot components----
+#-----------------------------------------------------------#
+# Arrange plot components----
+#-----------------------------------------------------------#
 
-#inset donut onto bar graph for panels A & B
+## Inset donut onto bar graph for panels A & B----
 figure_1a_top <- ggdraw()+
   draw_plot(figure1a_top_bar + theme(legend.position = "none"))+
   draw_plot(figure1a_top_donut, height=0.92,x=-0.21,y=0.18) +
@@ -294,7 +307,7 @@ figure_1b_top <- ggdraw()+
   draw_plot(figure1b_top_donut, height=0.92,x=-0.26,y=0.18) 
 figure_1b_top
 
-#Combine prevalence & case/te plots
+## Combine prevalence & case/te plots----
 figure_1a <- plot_grid(figure_1a_top, figure_1a_bottom + theme(legend.position = "none"),
                        rel_heights = c(0.2,1), ncol = 1)
 figure_1a
@@ -314,7 +327,10 @@ figure_1 <- plot_grid(figure_1, figure_1_legend, nrow = 2,
 
 figure_1
 
-## Save figures----
+#-----------------------------------------------------------#
+# Save figures----
+#-----------------------------------------------------------#
+
 ggsave("Figure_1a.pdf", plot = figure_1a, width = 3.75, height = 6, dpi = 300,
        path = here::here("figures/manuscript_figures"), bg = "white")
 ggsave("Figure_1b.pdf", plot = figure_1b, width = 3.75, height = 6, dpi = 300,
@@ -330,30 +346,13 @@ ggsave("Figure_1a_bottom.pdf", plot = figure_1a_bottom, width = 8, height = 5, d
        path = here::here("figures/manuscript_figures"), bg = "white", scale = 1)
 
 
-## Manuscript text only----
+#-----------------------------------------------------------#
+# Manuscript text only----
+#-----------------------------------------------------------#
 
-#### 3rd wave cases - attributable cases since 3rd wave start ----
-## larger panel - bar graph of assigned prevalence
-thirdwave_bar <- ggplot(data = cases_assign) +
-  geom_bar(aes(x = year, y = te_count, fill = te_assign), 
-           stat = "identity", position = "stack") +
-  scale_fill_manual(values = c(pub_te_palette, "Unsequenced" = "grey50"), 
-                    breaks = c(te_order[-length(te_order)], "Unsequenced"),
-                    drop = F) +
-  ylab("Reported Cholera Cases") +
-  xlab("Year") +
-  labs(fill = "Transmission Event Lineage") +
-  guides(fill=guide_legend(nrow=1, title.position = "left"),
-         color=guide_legend(nrow=1, title.position = "left")) +
-  plottheme +
-  theme_classic() +
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 9),
-        legend.title = element_text(size = 9.5, face = "bold"), 
-        legend.key.width = unit(0.4,"cm"))
-thirdwave_bar
+## 3rd wave cases - attributable cases since 3rd wave start ----
 
-##case lineages assignments - donut plot
+## case lineages assignments - donut plot
 cases_assign |> 
   filter(year>= min(cases_assign$year[cases_assign$te_assign %in% c(str_c("AFR", 9:17))], na.rm = T)) |> 
   group_by(te_assign) |> 
@@ -383,7 +382,7 @@ cases_assign |>
         legend.key.width = unit(1,"cm"))
 
 
-#### Sequence availability before 1989----
+## Sequence availability before 1989----
 
 cases_lineages_full |> 
   filter(year<1989, 
@@ -395,7 +394,7 @@ cases_lineages_full |>
             pct_sequence_yrs = n_sequence_yrs/n_country_years)
 ## 13.7% of country-years with reported cases
 
-#### Sequence availability third wave----
+## Sequence availability third wave----
 
 cases_lineages_full |> 
   filter(year>=1989, 
@@ -426,14 +425,14 @@ cases_lineages_full |>
 ## 9 countries with no sequence data after 1988
 
 
-#### Total cases ----
+## Total cases ----
 cases_lineages_full |> 
   filter(!is.na(cases) & cases>0) |> 
   distinct(country, year, cases) |> 
   summarize(tot_cases = sum(cases))
 ## 5,210,303 cases
 
-#### All sequence availability ----
+## All sequence availability ----
 
 cases_lineages_full |> 
   filter(!is.na(cases) & cases>0) |> 
@@ -445,7 +444,7 @@ cases_lineages_full |>
 ## 26.2% of country-years with reported cases
 
 
-#### Inferred proportions ----
+## Inferred proportions ----
 
 inferred_by_lineage <- gen_cases_prev |> 
   group_by(te) |> 
@@ -467,3 +466,14 @@ inferred_by_lineage |>
 ## T10: 32.7% [30.5, 34.8]
 ## T9: 13.5% [12.1, 14.9]
 
+## Subsetting sensitivity analyses
+cases_lineages_full |> 
+  filter_out(is.na(te)) |> 
+  distinct(country, year, tot_samples) |> 
+  mutate(subset1990 = if_else(year>=1990, tot_samples, 0),
+         subset2000 = if_else(year>=2000, tot_samples, 0)) |> 
+  summarize(n_sequences = sum(tot_samples),
+            n_1990 = sum(subset1990),
+            n_2000 = sum(subset2000),
+            pct_1990 = (n_1990/n_sequences)*100, # 93%
+            pct_2000 = (n_2000/n_sequences)*100) # 76%

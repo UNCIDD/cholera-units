@@ -525,13 +525,6 @@ hclust_sub_grp_samps <- purrr::map(clusters_samps, ~cutree(as.hclust(.x), k = k_
 
 #counts of subgroups for visualization
 hclust_subgrps_df <- purrr::imap(hclust_sub_grp_samps, ~{
-  #identify those that cluster with Nigeria vs not
-  # clusters <- c(if_else(.x[["Nigeria"]]!=1,1,2),
-  #                 .x[["Nigeria"]], 
-  #                 if_else(.x[["Nigeria"]]!=3,3,2))
-  # clusters <- c(1,
-  #               if_else(.x[["Nigeria"]]!=2,2,.x[["Nigeria"]]), 
-  #               3)
   clusters <- c(1:3)
   
   # assign clusters based on scheme above
@@ -727,8 +720,10 @@ map_list_grid <- cowplot::plot_grid(plotlist = map_list, ncol = 5)
 map_list_grid
 
 
+#-----------------------------------------------------------#
+# Save out----
+#-----------------------------------------------------------#
 
-##Save out----
 saveRDS(xi_dist_plotting, str_c(clust_dir, "/xi_dist_plotting.rds"))
 saveRDS(louvain_hmm_subgrps2, str_c(clust_dir, "/louvain_hmm_subgrps.rds"))
 saveRDS(hmm_mapping_edges, str_c(clust_dir, "/hmm_mapping_edges.rds"))
