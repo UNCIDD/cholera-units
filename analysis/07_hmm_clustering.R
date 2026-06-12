@@ -23,11 +23,11 @@ library(factoextra)
 library(NbClust)
 library(glue)
 
-options(scipen = 999999999)
+options(scipen = 9999)
 
 
 # Source functions
-# which_obs <- "all_data" # update if running sensitivity analyses or testing
+# sampling <- "all_data" # update if running sensitivity analyses or testing
 source(here("analysis","00_functions_settings.R"), local = T)
 
 if(simulate){
@@ -35,16 +35,10 @@ if(simulate){
   if (!dir.exists(out_dir)) {dir.create(out_dir)}
 }
 
-# run_model <- F
-# test_subset <- T
-# min_year <- 1990
-# set.seed(seed)
-# filter_cutoff <- 0.5
 
 #-----------------------------------------------------------#
 # Import----
 #-----------------------------------------------------------#
-##----import
 
 source(here("analysis","02_import_data.R"), local = T)
 
@@ -309,7 +303,8 @@ new_louvain_heatmap <- ggplot(data = new_louvain_subgrps2,
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95),
         axis.title = element_blank(),
         legend.title = element_blank(),
-        legend.position = "right")
+        legend.position = "right") +
+  ggtitle(glue::glue("threshold: {consensus_threshold}"))
 new_louvain_heatmap
 # 3 clusters: c("Nigeria", "Djibouti", "South Africa")
 # 4 clusters: c("Liberia", "Nigeria", "Djibouti", "South Africa")

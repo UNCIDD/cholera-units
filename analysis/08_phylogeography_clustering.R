@@ -321,9 +321,9 @@ new_louvain_subgrps2 <- louvain_phylo_subgrps |>
   left_join(subgrps |> 
               select(countries, pct) |> distinct(), by = "countries") |> 
   mutate_at(c("country1", "country2"), ~country_rename(.)) |>
-  mutate(country1 = factor(country1, levels = heatmap_order, 
+  mutate(country1 = factor(country1, levels = heatmap_order_phylo, 
                            ordered = T),
-         country2 = factor(country2, levels = rev(heatmap_order), 
+         country2 = factor(country2, levels = rev(heatmap_order_phylo), 
                            ordered = T)) |> 
   arrange(country2, country1)
 
@@ -339,7 +339,7 @@ new_louvain_heatmap <- ggplot(data = new_louvain_subgrps2,
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95),
         axis.title = element_blank(),
         legend.title = element_blank(),
-        legend.position = "right")
+        legend.position = "right") 
 new_louvain_heatmap
 
 # Assign consensu clusters
