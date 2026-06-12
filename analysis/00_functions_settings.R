@@ -61,14 +61,18 @@ clean_df <- function(data, seq = F) {
   return(d)
 }
 
-#' Function to update country names for consistency
+#' Functions to update country names for consistency
 #' @param var variable coding country names
 
-country_rename <- function(var){
-    case_when(
-      str_to_lower({{ var }}) == "drc" ~ "DRC", 
-      str_detect(str_to_lower({{ var }}),"cote") ~ "Cote d'Ivoire",
-      T ~ str_replace(str_to_title({{ var }}), "Of The", "of the"))
+country_rename <- function(var, sudan_rename = F){
+  x <- case_when(
+    str_to_lower({{ var }}) == "drc" ~ "DRC", 
+    str_detect(str_to_lower({{ var }}),"cote") ~ "Cote d'Ivoire",
+    T ~ str_replace(str_to_title({{ var }}), "Of The", "of the"))
+  if(sudan_rename){
+    x <- if_else(x == "Sudan", "Sudan & South Sudan", x)
+  }
+  return(x)
 }
 
 ### Stan prep----
@@ -422,48 +426,40 @@ phylo_prep_func <- function(data = phylo2, summ = F){
 }
 
 ##### Heatmap order----
-# heatmap_order <- c("Guinea", "Sierra Leone", "Liberia", "Mauritania", "Guinea-Bissau",
-#                    "Senegal", "Cote D'ivoire", "Mali", "Togo",
-#                    "Burkina Faso", "Benin", "Ghana", "Nigeria", "Cameroon", "Niger", "Chad", "Equatorial Guinea", "Sao Tome", "Gabon",
-#                    "Republic Of The Congo", "Central African Republic", "South Sudan", 
-#                    "Sudan", "Angola", "DRC", "Ethiopia", "Somalia",
-#                    "Uganda", "Tanzania", "Rwanda", "Kenya", "Zambia", "Madagascar", "Djibouti",
-#                    "Namibia", "Burundi", "Comoros", 
-#                    "Botswana", "Zimbabwe", "Malawi", "Mozambique", "Eswatini", "Lesotho", "South Africa")
 
 # Used for Figs 3, S1, S3
 heatmap_order <-  c("Gambia", "Guinea-Bissau", "Senegal", "Sierra Leone","Guinea", 
-                     "Liberia", "Cote d'Ivoire", "Mali", "Mauritania", "Benin", 
+                     "Liberia", "Cote d'Ivoire", "Mauritania", "Mali", "Benin", 
                     "Burkina Faso", "Togo", "Ghana", "Nigeria", "Cameroon", 
                     "Chad", "Niger", "Equatorial Guinea", "Gabon", "Sao Tome", 
                     "Rep. of the Congo", "Central African Rep.", "DRC", 
                     "Sudan", "South Sudan", "Somalia",  "Eritrea", "Ethiopia",  
                     "Djibouti", "Rwanda", "Uganda", "Kenya", "Tanzania", "Zambia", 
-                    "Burundi", "Comoros", "Madagascar", "Malawi", "Angola",
-                    "Mozambique", "Zimbabwe", "South Africa", 
-                    "Eswatini", "Lesotho", "Namibia", "Botswana")  
+                    "Burundi", "Comoros", "Madagascar", "Malawi", "Angola", 
+                    "Namibia", "Botswana", "Mozambique", "Zimbabwe", "South Africa", 
+                    "Eswatini", "Lesotho")  
 heatmap_order_phylo <-  c("Gambia", "Guinea-Bissau", "Senegal", "Sierra Leone","Guinea", 
-                    "Liberia", "Cote d'Ivoire", "Mali", "Mauritania", "Benin", 
+                    "Liberia", "Cote d'Ivoire", "Mauritania", "Mali", "Benin", 
                     "Burkina Faso", "Togo", "Ghana", "Nigeria", "Cameroon", 
                     "Chad", "Niger", "Equatorial Guinea", "Gabon", "Sao Tome", 
                     "Rep. of the Congo", "Central African Rep.", "DRC", 
                     "Sudan", "South Sudan", "Somalia",  "Eritrea", "Ethiopia",  
                     "Djibouti", "Rwanda", "Uganda", "Kenya", "Tanzania", "Zambia", 
                     "Burundi", "Comoros", "Madagascar", "Angola", "Malawi", 
-                    "Mozambique", "Zimbabwe", "South Africa", 
-                    "Eswatini", "Lesotho", "Namibia", "Botswana")  
+                    "Namibia", "Botswana", "Mozambique", "Zimbabwe", "South Africa", 
+                    "Eswatini", "Lesotho")  
 
 # Combining Sudan & South Sudan (Used for Figs 4-5)
 heatmap_order_comb <- c("Gambia", "Guinea-Bissau", "Senegal", "Sierra Leone","Guinea", 
-                        "Liberia", "Cote d'Ivoire", "Mali", "Mauritania", "Benin", 
+                        "Liberia", "Cote d'Ivoire", "Mauritania", "Mali", "Benin", 
                         "Burkina Faso", "Togo", "Ghana", "Nigeria", "Cameroon", 
                         "Chad", "Niger", "Equatorial Guinea", "Gabon", "Sao Tome", 
                         "Rep. of the Congo", "Central African Rep.", "DRC", 
                         "Sudan & South Sudan", "Somalia",  "Eritrea", "Ethiopia",  
                         "Djibouti", "Rwanda", "Uganda", "Kenya", "Tanzania", "Zambia", 
-                        "Burundi", "Comoros", "Madagascar", "Malawi", "Angola",
-                        "Mozambique", "Zimbabwe", "South Africa", 
-                        "Eswatini", "Lesotho", "Namibia", "Botswana")  
+                        "Burundi", "Comoros", "Madagascar", "Malawi", "Angola", 
+                        "Namibia", "Botswana", "Mozambique", "Zimbabwe", "South Africa", 
+                        "Eswatini", "Lesotho")  
 
 ### Outbreak Simulation functions----
 
@@ -807,6 +803,41 @@ case_lineage_plot_theme <- list(theme(text = element_text(family = "serif"),
                                       # Plot
                                       plot.margin = unit(c(t=0.1, r=0.0, b=0.05, l=0.05), "cm")))
 
+##### fig3_heatmap_options----
+fig3_heatmap_options <- list(scale_alpha_continuous(range = c(0.7,0.98)),
+                        guides(alpha = "none",
+                               fill = guide_colorbar(title = "log SDs")),
+                        theme_classic(),
+                        theme(axis.text.x = element_text(angle = 90, 
+                                                         hjust = 1,
+                                                         margin = margin(t = 0.01)),
+                              axis.text.x.bottom = element_text(vjust = 0.5),
+                              axis.text.y = element_text(margin = margin(r = 0.01)),
+                              text = element_text(size = 4,
+                                                  family = "serif"),
+                              axis.ticks = element_line(linewidth = 0.01),
+                              axis.ticks.length = unit(0.05,"cm"),
+                              axis.line = element_line(linewidth = 0.05),
+                              axis.title = element_blank(),
+                              legend.title = element_blank(),
+                              legend.position = "none",
+                              plot.margin = unit(c(t = 0.01, r = 0.01, b = 0.01, l = 0.01), "cm")),
+                        coord_fixed())
+
+##### fig3_map_cluster_options----
+fig3_map_cluster_options <- list(
+  scale_fill_manual(values = alpha(pub_cluster_palette, 0.85), na.value = "grey70"),
+  scale_alpha_continuous(range = c(0.7,0.98)),
+  scale_linewidth_continuous(range = c(0.01, 1.2)),
+  theme_void(),
+  theme(legend.position = "inside",
+        legend.position.inside = c(0.21,0.28),
+        legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.key.height = unit(0.15, "in"),
+        legend.key.width = unit(0.05, "in"),
+        plot.margin = unit(c(t = 0.0, r = 0.0, b = 0.0, l = 0.0), "cm")))
+
 map_options_func <- function(mid, param, exp = F, color_m = "white", 
                              color_l = "dodgerblue3", color_h = "firebrick4"){
   options <- list(
@@ -848,7 +879,7 @@ prev_bar_plot <- function(data, y_var, te_var){
   data |> 
     ggplot() +
     geom_bar(aes(x = year, y = {{y_var}}, fill = {{te_var}}), 
-             stat = "identity", position = "stack") +
+             stat = "identity", position = "stack", show.legend = TRUE) +
     scale_fill_manual(values = c(pub_te_palette, "Unsequenced" = "grey50"), 
                       breaks = c(pub_te_order[-length(pub_te_order)], "Unsequenced"),
                       drop = F) +
