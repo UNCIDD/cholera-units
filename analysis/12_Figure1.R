@@ -291,7 +291,7 @@ figure_1a_top
 
 figure_1b_top <- ggdraw()+
   draw_plot(figure1b_top_bar + theme(legend.position = "none"))+
-  draw_plot(figure1b_top_donut, height=0.92,x=-0.21,y=0.18) 
+  draw_plot(figure1b_top_donut, height=0.92,x=-0.26,y=0.18) 
 figure_1b_top
 
 #Combine prevalence & case/te plots
@@ -315,18 +315,18 @@ figure_1 <- plot_grid(figure_1, figure_1_legend, nrow = 2,
 figure_1
 
 ## Save figures----
-ggsave("figure_1a.pdf", plot = figure_1a, width = 3.75, height = 6, dpi = 300,
+ggsave("Figure_1a.pdf", plot = figure_1a, width = 3.75, height = 6, dpi = 300,
        path = here::here("figures/manuscript_figures"), bg = "white")
-ggsave("figure_1b.pdf", plot = figure_1b, width = 3.75, height = 6, dpi = 300,
+ggsave("Figure_1b.pdf", plot = figure_1b, width = 3.75, height = 6, dpi = 300,
        path = here::here("figures/manuscript_figures"), bg = "white")
-ggsave("figure_1.pdf", plot = figure_1, width = 7.5, height = 7, dpi = 300,
+ggsave("Figure_1.pdf", plot = figure_1, width = 7.5, height = 7, dpi = 300,
        path = here::here("figures/manuscript_figures"), bg = "white")
-ggsave("figure_1.png", plot = figure_1, width = 7.5, height = 7, dpi = 400,
+ggsave("Figure_1.png", plot = figure_1, width = 7.5, height = 7, dpi = 400,
        path = here::here("figures/manuscript_figures"), bg = "white")
 
-ggsave("figure_1a_top.pdf", plot = figure_1a_top, width = 8, height = 3, dpi = 300,
+ggsave("Figure_1a_top.pdf", plot = figure_1a_top, width = 8, height = 3, dpi = 300,
        path = here::here("figures/manuscript_figures"), bg = "white", scale = 0.5)
-ggsave("figure_1a_bottom.pdf", plot = figure_1a_bottom, width = 8, height = 5, dpi = 300,
+ggsave("Figure_1a_bottom.pdf", plot = figure_1a_bottom, width = 8, height = 5, dpi = 300,
        path = here::here("figures/manuscript_figures"), bg = "white", scale = 1)
 
 
