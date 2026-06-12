@@ -1,7 +1,14 @@
-#------------- Figure 3 -------------####
-#### Clustering results
+#-----------------------------------------------------------------#
+# Project: Defining epidemiologically relevant transmission
+#          units in Africa
+# File: 13_Figure3.R
+# Purpose: This script creates Figure 3 showing clustering results
+#-----------------------------------------------------------------#
 
-## Initialize----
+#-----------------------------------------------------------#
+# Initialize----
+#-----------------------------------------------------------#
+
 library(tidyverse)
 library(spData) 
 library(sf)
@@ -21,7 +28,9 @@ set.seed(seed)
 
 filter_cutoff <- 0.5
 
-## Read data----
+#-----------------------------------------------------------#
+# Read data----
+#-----------------------------------------------------------#
 
 source(here("analysis","02_import_data.R"), local = T) 
 
@@ -37,20 +46,24 @@ hmm_louvain_subgrps <- readRDS(str_c(clust_dir, "/louvain_hmm_subgrps.rds"))
 hmm_mapping_edges <- readRDS(str_c(clust_dir, "/hmm_mapping_edges.rds"))
 hmm_consensus_clusters <- readRDS(str_c(clust_dir, "/hmm_consensus_clusters.rds"))
 
-## Spatial objects----
+#-----------------------------------------------------------#
+# Spatial objects----
+#-----------------------------------------------------------#
+
 countries <- all_countries
 M <- length(countries) 
 n_time <- 1
 spatial_objs <- create_connections(M, n_time)
 
-### Edges & Nodes----
-##----create_edges
-
+### Edges & Nodes
 nodes <- make_nodes()
-
 edges <- make_edges(nodes)
 
-## Prep for plotting----
+#-----------------------------------------------------------#
+# Plotting prep----
+#-----------------------------------------------------------#
+
+## Filter edges----
 hmm_filter_stat <- quantile(hmm_mapping_edges$log_xi_norm, filter_cutoff)
 hmm_filter_stat_mean <- mean(hmm_mapping_edges$log_xi_norm)
 phylo_filter_stat <- quantile(hmm_mapping_edges$log_xi_norm, filter_cutoff)
@@ -60,6 +73,7 @@ hmm_filtered_edges <- hmm_mapping_edges |>
 phylo_filtered_edges <- phylo_mapping_edges |> 
   filter(ind_pct>filter_cutoff)
 
+## Distances----
 hmm_dist_plotting <- hmm_dist_plotting |> 
   select(country1, country2, log_xi_norm) |> 
   mutate_at(c("country1", "country2"),  ~as.character(.))
@@ -67,9 +81,9 @@ phylo_dist_plotting <- phylo_dist_plotting |>
   select(country1, country2, log_rate_norm) |> 
   mutate_at(c("country1", "country2"),  ~as.character(.))
 
-#consistent clustering
+## Consistent clustering----
 clust_reassign <- tibble(
-  country = c("South Africa", "Kenya", "Mauritania", "Central African Republic"),
+  country = c("South Africa", "Kenya", "Mauritania", "Central African Rep."),
   cluster_4k_assign = factor(c(1:4))) |> 
   left_join(hmm_louvain_hclusters |> select(country, hmm_cluster = cluster_4k),
             by = "country") |> 
@@ -100,7 +114,7 @@ phylo_clust_sf <- africa_sf |>
   left_join(phylo_louvain_hclusters,
             by = "country")
 
-consensus_clust_reassign |> select(contains("hmm")) |> distinct()
+
 hmm_consensus_clusters <- hmm_consensus_clusters |> 
   left_join(consensus_clust_reassign |> select(contains("hmm")) |> distinct(),
             by = c("cluster" = "hmm_cluster")) |> 
@@ -122,7 +136,7 @@ phylo_consensus_clust_sf <- africa_sf |>
   left_join(phylo_consensus_clusters,
             by = c("country"="country1"))
 
-#Background layers for maps
+## Background layers for maps----
 clust_map_background <- list(
   geom_sf_pattern(data = full_africa_sf |> filter(country %in% north_africa_exclude), 
                   fill = "grey90", color = "grey40", alpha = 0.2,
@@ -134,56 +148,35 @@ clust_map_background <- list(
 
 
 ## Mapping options----
-
 min_color_val <- floor(min(min(hmm_mapping_edges$log_xi_norm, na.rm = T), 
                            min(phylo_mapping_edges$log_rate_norm, na.rm = T)))
 max_color_val <- ceiling(max(max(hmm_mapping_edges$log_xi_norm, na.rm = T), 
                              max(phylo_mapping_edges$log_rate_norm, na.rm = T)))
 max_abs_val <- max(abs(min_color_val), abs(max_color_val))
 
-pub_cluster_options <- list(
-  scale_fill_manual(values = alpha(pub_cluster_palette, 0.85), na.value = "grey70"),
-  scale_color_gradient2(low = "#5CB3FF", mid = "grey90", high = "darkorange2",
-                       midpoint = 0, na.value = "grey60", limits = c(min_color_val,
-                                                                     max_color_val)),
-  scale_alpha_continuous(range = c(0.7,0.98)),
-  scale_linewidth_continuous(range = c(0.01, 1.2)),
-  theme_void(),
-  theme(legend.position = "inside",
-        legend.position.inside = c(0.21,0.28),
-        legend.title = element_text(size = 6),
-        legend.text = element_text(size = 5),
-        legend.key.height = unit(0.15, "in"),
-        legend.key.width = unit(0.05, "in"),
-        plot.margin = unit(c(t = 0.0, r = 0.0, b = 0.0, l = 0.0), "cm")))
+fig3_heatmap_options <- append(list(scale_fill_gradient2(low = "#5CB3FF", 
+                                                         mid = "grey90", 
+                                                         high = "darkorange2",
+                                                         midpoint = 0, 
+                                                         na.value = "grey96", 
+                                                         limits = c(min_color_val,
+                                                                    max_color_val))),
+                               fig3_heatmap_options)
+fig3_map_cluster_options <- append(list(scale_color_gradient2(low = "#5CB3FF", 
+                                                              mid = "grey90", 
+                                                              high = "darkorange2",
+                                                              midpoint = 0, 
+                                                              na.value = "grey60", 
+                                                              limits = c(min_color_val,
+                                                                         max_color_val))),
+                                   fig3_map_cluster_options)
 
-## HMM Mapped edges----
-figure_2d_hmm_map <- ggplot() + 
-  clust_map_background + 
-  geom_sf(data = hmm_consensus_clust_sf, aes(fill = cluster_assign)) +
-  geom_sf(data = hmm_consensus_clust_sf |> filter(!is.na(cluster_assign)) |> 
-            group_by(cluster_assign) |> summarize(),
-          fill = "transparent", color = "grey30", linewidth = 0.4) + 
-  geom_curve(aes(x = xstart, y = ystart, xend = xend, yend = yend,     
-                 linewidth = log_xi_norm,
-                 alpha = log_xi_norm, 
-                 color = log_xi_norm), 
-             data = hmm_filtered_edges,
-             curvature = -0.35,
-             lineend = "round") +
-  geom_point(data = st_centroid(africa_sf$geometry),
-             aes(x = unlist(map(geometry,1)), y = unlist(map(geometry,2))),
-             size = 0.5, color = "grey20") +
-  guides(linewidth = "none", 
-         fill = "none",
-         alpha = "none",
-         color = guide_colorbar(title = "Standardized Connectivity\nMeasure")) +
-  pub_cluster_options
-figure_2d_hmm_map
+#-----------------------------------------------------------#
+# Mapped edges----
+#-----------------------------------------------------------#
 
 ## Phylo Mapped edges----
-
-figure_2b_phylo_map <- ggplot() + 
+figure_3a_phylo_map <- ggplot() + 
   clust_map_background +
   geom_sf(data = phylo_consensus_clust_sf, aes(fill = cluster_assign)) +
   geom_sf(data = phylo_consensus_clust_sf |> filter(!is.na(cluster_assign)) |> 
@@ -204,60 +197,86 @@ figure_2b_phylo_map <- ggplot() +
          fill = "none",
          alpha = "none",
          color = guide_colorbar(title = "Standardized\nTransition Rates")) +
-  pub_cluster_options
-figure_2b_phylo_map
+  fig3_map_cluster_options
+figure_3a_phylo_map
 
-## Distance heatmaps----
+## HMM Mapped edges----
+figure_3c_hmm_map <- ggplot() + 
+  clust_map_background + 
+  geom_sf(data = hmm_consensus_clust_sf, aes(fill = cluster_assign)) +
+  geom_sf(data = hmm_consensus_clust_sf |> filter(!is.na(cluster_assign)) |> 
+            group_by(cluster_assign) |> summarize(),
+          fill = "transparent", color = "grey30", linewidth = 0.4) + 
+  geom_curve(aes(x = xstart, y = ystart, xend = xend, yend = yend,     
+                 linewidth = log_xi_norm,
+                 alpha = log_xi_norm, 
+                 color = log_xi_norm), 
+             data = hmm_filtered_edges,
+             curvature = -0.35,
+             lineend = "round") +
+  geom_point(data = st_centroid(africa_sf$geometry),
+             aes(x = unlist(map(geometry,1)), y = unlist(map(geometry,2))),
+             size = 0.5, color = "grey20") +
+  guides(linewidth = "none", 
+         fill = "none",
+         alpha = "none",
+         color = guide_colorbar(title = "Standardized Connectivity\nMeasure")) +
+  fig3_map_cluster_options
+figure_3c_hmm_map
 
-### Heatmap options----
-
-heatmap_options <- list(scale_fill_gradient2(low = "#5CB3FF", mid = "grey90", high = "darkorange2",
-                                             midpoint = 0, na.value = "grey96", limits = c(min_color_val,
-                                                                                           max_color_val)),
-                        scale_alpha_continuous(range = c(0.7,0.98)),
-                        guides(alpha = "none",
-                               fill = guide_colorbar(title = "log SDs")),
-                        theme_classic(),
-                        theme(axis.text.x = element_text(angle = 90, 
-                                                         hjust = 1,
-                                                         margin = margin(t = 0.01)),
-                              axis.text.x.bottom = element_text(vjust = 0.5),
-                              axis.text.y = element_text(margin = margin(r = 0.01)),
-                              text = element_text(size = 4,
-                                                  family = "serif"),
-                              axis.ticks = element_line(linewidth = 0.01),
-                              axis.ticks.length = unit(0.05,"cm"),
-                              axis.line = element_line(linewidth = 0.05),
-                              axis.title = element_blank(),
-                              legend.title = element_blank(),
-                              legend.position = "none",
-                              plot.margin = unit(c(t = 0.01, r = 0.01, b = 0.01, l = 0.01), "cm")),
-                        coord_fixed())
-
-
-initial_order <- hmm_louvain_hclusters |> 
-  arrange(desc(cluster_4k_assign), country) |> 
-  select(country, cluster_4k_assign)
-
-inital_order_v <-  c("Cote d'Ivoire", "Guinea", "Guinea-Bissau", "Liberia", 
-                     "Mali", "Mauritania", "Senegal", "Sierra Leone", "Benin", 
-                     "Burkina Faso", "Cameroon", "Central African Rep.",
-                    "Chad", "Equatorial Guinea", "Gabon", "Ghana", "Niger",
-                    "Nigeria", "Rep. of the Congo", "Sao Tome", "Togo", 
-                    "Burundi", "DRC", "Djibouti", "Ethiopia", "Kenya", 
-                    "Rwanda", "Somalia",  "Sudan", "South Sudan", "Tanzania", 
-                    "Uganda", "Zambia", "Angola", "Botswana", "Comoros", 
-                    "Eswatini", "Lesotho", "Madagascar", "Malawi", 
-                    "Mozambique", "Namibia", "South Africa", "Zimbabwe") 
-
+#-----------------------------------------------------------#
+# Distance heatmaps----
+#-----------------------------------------------------------#
 
 countries_df <- tibble(country1 = rep(heatmap_order, times = length(heatmap_order)),
                        country2 = rep(heatmap_order, each = length(heatmap_order))) |> 
   filter(country1!=country2)
 
+### Phylo distance heatmap----
+
+phylo_dist_plotting_ordered <- countries_df |> 
+  left_join(phylo_dist_plotting |>  
+              mutate_at(c("country1", "country2"), 
+                        ~country_rename(.))) |> 
+  mutate(country1 = factor(country1, 
+                           levels = heatmap_order_phylo, ordered = T),
+         country2 = factor(country2, 
+                           levels = rev(heatmap_order_phylo), ordered = T)) |> 
+  arrange(country1, desc(country2))
+
+# Object for outlining clusters
+phylo_clust_box <- phylo_consensus_clusters |> 
+  mutate(country1 = factor(country1, 
+                           levels = heatmap_order_phylo, ordered = T)) |> 
+  arrange(country1) |> 
+  group_by(cluster_assign) |> 
+  mutate(x = as.numeric(first(country1)), xend = as.numeric(last(country1))) |> 
+  ungroup() |> 
+  mutate(country1 = factor(country1, 
+                           levels = rev(heatmap_order_phylo), ordered = T)) |> 
+  arrange(country1) |> 
+  group_by(cluster_assign) |> 
+  mutate(y = as.numeric(first(country1)), yend = as.numeric(last(country1))) |> 
+  ungroup() |> 
+  select(cluster_assign, x, xend, y, yend) |> 
+  distinct() |> 
+  arrange(cluster_assign)
+
+figure_3b_phylo_heatmap <- ggplot() +
+  geom_tile(data = phylo_dist_plotting_ordered, 
+            aes(y = country2, x = country1, fill = log_rate_norm, 
+                alpha = log_rate_norm), 
+            color = "transparent", lwd = 0.01, linetype = 1) +
+  geom_rect(data = phylo_clust_box, aes(xmin = x-0.5, xmax = xend+0.5, 
+                                        ymin = y-0.5, ymax = yend+0.5, 
+                                        color = cluster_assign), fill = NA,
+            lwd = 0.35) +
+  fig3_heatmap_options +
+  scale_color_manual(values = pub_cluster_palette)
+figure_3b_phylo_heatmap
+
 
 ### HMM distance heatmap----
-
 hmm_dist_plotting_ordered <- countries_df |> 
   left_join(hmm_dist_plotting |>  
               mutate_at(c("country1", "country2"), 
@@ -266,6 +285,8 @@ hmm_dist_plotting_ordered <- countries_df |>
                            levels = heatmap_order, ordered = T),
          country2 = factor((country2), 
                            levels = rev(heatmap_order), ordered = T))
+
+# Object for outlining clusters
 hmm_clust_box <- hmm_consensus_clusters |> 
   mutate(country1 = factor(country1, 
                            levels = heatmap_order, ordered = T)) |> 
@@ -283,7 +304,7 @@ hmm_clust_box <- hmm_consensus_clusters |>
   distinct() |> 
   arrange(cluster_assign)
 
-figure_2c_hmm_heatmap <- ggplot() +
+figure_3d_hmm_heatmap <- ggplot() +
   geom_tile(data = hmm_dist_plotting_ordered, 
             aes(y = country2, x = country1, fill = log_xi_norm, 
                 alpha = log_xi_norm), 
@@ -292,111 +313,38 @@ figure_2c_hmm_heatmap <- ggplot() +
                                       ymin = y-0.5, ymax = yend+0.5, 
                    color = cluster_assign), fill = NA, 
             lwd = 0.35) +
-  heatmap_options +
+  fig3_heatmap_options +
   scale_color_manual(values = pub_cluster_palette)
 
-figure_2c_hmm_heatmap
+figure_3d_hmm_heatmap
 
+#-----------------------------------------------------------#
+# Save figure panels----
+#-----------------------------------------------------------#
 
-### Phylo distance heatmap----
-
-phylo_dist_plotting_ordered <- countries_df |> 
-  left_join(phylo_dist_plotting |>  
-              mutate_at(c("country1", "country2"), 
-                        ~country_rename(.))) |> 
-  mutate(country1 = factor(country1, 
-                           levels = heatmap_order, ordered = T),
-         country2 = factor(country2, 
-                           levels = rev(heatmap_order), ordered = T)) |> 
-  arrange(country1, desc(country2))
-phylo_clust_box <- phylo_consensus_clusters |> 
-  mutate(country1 = factor(country1, 
-                           levels = heatmap_order, ordered = T)) |> 
-  arrange(country1) |> 
-  group_by(cluster_assign) |> 
-  mutate(x = as.numeric(first(country1)), xend = as.numeric(last(country1))) |> 
-  ungroup() |> 
-  mutate(country1 = factor(country1, 
-                           levels = rev(heatmap_order), ordered = T)) |> 
-  arrange(country1) |> 
-  group_by(cluster_assign) |> 
-  mutate(y = as.numeric(first(country1)), yend = as.numeric(last(country1))) |> 
-  ungroup() |> 
-  select(cluster_assign, x, xend, y, yend) |> 
-  distinct() |> 
-  arrange(cluster_assign)
-
-figure_2a_phylo_heatmap <- ggplot() +
-  geom_tile(data = phylo_dist_plotting_ordered, 
-            aes(y = country2, x = country1, fill = log_rate_norm, 
-                alpha = log_rate_norm), 
-            color = "transparent", lwd = 0.01, linetype = 1) +
-  geom_rect(data = phylo_clust_box, aes(xmin = x-0.5, xmax = xend+0.5, 
-                                      ymin = y-0.5, ymax = yend+0.5, 
-                                      color = cluster_assign), fill = NA,
-            lwd = 0.35) +
-  heatmap_options +
-  scale_color_manual(values = pub_cluster_palette)
-figure_2a_phylo_heatmap
-
-## Arrange Figures----
-
-### HMM----
-
-figure2b_hmm <- ggdraw()+
-  draw_plot(figure_2d_hmm_map, x = 0.07, y = 0.02)+
-  draw_plot(figure_2c_hmm_heatmap, # +
-              # theme(legend.box.spacing = unit(c(0.02,0,0,0), "cm"),
-              #       legend.key.height = unit(1,"mm")),
-            height=0.5,x=-0.27,y=-0.015)
-figure2b_hmm
-
-### Phylo----
-
-figure2a_phylo <- ggdraw()+
-  draw_plot(figure_2b_phylo_map, x=0.07, y = 0.02)+
-  draw_plot(figure_2a_phylo_heatmap, #+
-              # theme(legend.box.spacing = unit(c(0.02,0,0,0), "cm"),
-              #       legend.key.height = unit(1,"mm")),
-            height=0.5,x=-0.27,y=-0.015)
-figure2a_phylo
-
-### Combine----
-
-figure2 <- cowplot::plot_grid(figure2a_phylo, figure2b_hmm,
-                              ncol = 1, labels = c("A.", "B."),
-                              label_fontfamily = "serif", label_size = 9)
-figure2
-
-## Save figures----
-ggsave("figure_2b_phylo_heatmap.pdf", plot = figure_2a_phylo_heatmap + theme(legend.position = "none"), 
-       width = 2.4, height = 2.35, dpi = 400,
-       path = here::here("figures/manuscript_figures"))
-ggsave("figure_2b_phylo_map.pdf", plot = figure_2b_phylo_map, 
+## Note: Full figure assembled in Adobe Illustrator
+ggsave("Figure_3a_phylo_map.pdf", plot = figure_3a_phylo_map, 
        width = 2.7, height = 2.75, dpi = 400,
        path = here::here("figures/manuscript_figures"))
-ggsave("figure_2b.pdf", plot = figure2a_phylo + theme(legend.position = "none"), 
-       width = 4.5, height = 4, dpi = 400,
-       path = here::here("figures/manuscript_figures"))
-
-ggsave("figure_2c_hmm_heatmap.pdf", plot = figure_2c_hmm_heatmap + theme(legend.position = "none"), 
+ggsave("Figure_3b_phylo_heatmap.pdf", plot = figure_3b_phylo_heatmap + theme(legend.position = "none"), 
        width = 2.4, height = 2.35, dpi = 400,
        path = here::here("figures/manuscript_figures"))
-ggsave("figure_2c_hmm_map.pdf", plot = figure_2d_hmm_map, 
+ggsave("Figure_3c_hmm_map.pdf", plot = figure_3c_hmm_map, 
        width = 2.7, height = 2.75, dpi = 400,
        path = here::here("figures/manuscript_figures"))
-ggsave("figure_2c.pdf", plot = figure2b_hmm, 
-       width = 4.5, height = 4, dpi = 400,
+ggsave("Figure_3d_hmm_heatmap.pdf", plot = figure_3d_hmm_heatmap + theme(legend.position = "none"), 
+       width = 2.4, height = 2.35, dpi = 400,
        path = here::here("figures/manuscript_figures"))
 
-
-## Statistics for manuscript text----
+#-----------------------------------------------------------#
+# Statistics for manuscript text----
+#-----------------------------------------------------------#
 
 library(coda)
 
 ### Phylo: Within vs between cluster analysis----
 
-combine_sudan <- F
+sep_sudan <- T
 sampling <- "all_data"
 
 source(here("analysis","00_functions_settings.R"), local = T)
@@ -523,13 +471,6 @@ compare_samevdiff_hpd <- c(mean(compare_samevdiff$rate_compare), compare_samevdi
 names(compare_samevdiff_hpd) <- c("mean", "lower", "upper")
 compare_samevdiff_hpd
 
-# # Using weighted rates from heatmap
-# phylo_clust_compare |> 
-#   select(same_cluster, mean_rate_same) |> 
-#   distinct() |> 
-#   mutate(rate_compare = if_else(same_cluster==1, 
-#                                 mean_rate_same/lag(mean_rate_same),
-#                                 0))
   
 #### Between cluster analysis----
   # Comparing western vs CE/S clusters using weighted rates from heatmap
@@ -567,7 +508,7 @@ compare_between_e_vs_ew_hpd
 
 ## HMM: Within vs between cluster analysis----
 
-combine_sudan <- T
+sep_sudan <- F
 sampling <- "all_data"
 
 source(here("analysis","00_functions_settings.R"), local = T)
@@ -654,24 +595,11 @@ hmm_clust_compare <- hmm_dist |>
   ungroup()
 
 
-hmm_clust_compare |> 
-  select(same_cluster, mean_rate_same) |> 
-  distinct()
-hmm_clust_compare |> 
-  select(same_cluster, mean_rate_same, cluster_pair_summ, mean_rate_pair_summ) |> 
-  distinct()
-hmm_clust_compare |> 
-  select(same_cluster, mean_rate_same, cluster_pair_summ, mean_rate_pair_summ2) |> 
-  distinct()
-
-hmm_clust_compare |> 
-  select(same_cluster, cluster_pair, mean_rate_pair) |> 
-  distinct()
-
-
-hmm_within_between_model <- glm(same_cluster ~ log_xi_norm, family = "binomial"(link=logit), data = hmm_clust_compare)
+hmm_within_between_model <- glm(same_cluster ~ log_xi_norm, 
+                                family = "binomial"(link=logit), 
+                                data = hmm_clust_compare)
 broom::tidy(hmm_within_between_model, exponentiate = T, conf.int = T)
-broom::tidy(hmm_within_between_model, exponentiate = F)
+
 
 
 
