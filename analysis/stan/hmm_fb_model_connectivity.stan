@@ -280,7 +280,7 @@ transformed parameters {
         }// end other country loop
           
         // update rate of colonization to incorporate self re-introduction (delta) & intercontinental introduction
-        real phi_base = 1 - gamma[nm,v] * exp(-force); // initialize probability of colonization & self-introduction
+        real phi_base = (1 - gamma[nm,v]) * exp(-force); // initialize probability of colonization & self-introduction
         real self_force = origin_force[i] * delta;
         
         // previous state 0 -> current state 1
@@ -329,12 +329,12 @@ transformed parameters {
         else if (a11 <= 0) a11 = epsilon;
 
         a00 = 1 - a01;
-        if (a00 == 1) a00 = 1 - epsilon;
-        else if (a00 == 0) a00 = epsilon;
+        if (a00 >= 1) a00 = 1 - epsilon;
+        else if (a00 <= 0) a00 = epsilon;
 
         a10 = 1 - a11;
-        if (a10 == 1) a10 = 1 - epsilon;
-        else if (a10 == 0) a10 = epsilon;
+        if (a10 >= 1) a10 = 1 - epsilon;
+        else if (a10 <= 0) a10 = epsilon;
         
         // observation log-probabilities
         if (y_iv == 0) {
