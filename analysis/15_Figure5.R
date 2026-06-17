@@ -298,7 +298,7 @@ supp_fig5
 ggsave("Figure_5.pdf", plot = figure_5, height = 8, width = 7, dpi = 400,
        path = here::here("figures/manuscript_figures"))
 ggsave("Figure_5.png", plot = figure_5, height = 8, width = 7, dpi = 400,
-       path = here::here("figures/manuscript_figures"))
+       bg = "white", path = here::here("figures/manuscript_figures"))
 
 ggsave("Supplemental_FigS5.pdf", plot = supp_fig5, height = 9, width = 7, dpi = 400,
        path = here::here("figures/manuscript_figures"))
