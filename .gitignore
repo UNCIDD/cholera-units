@@ -1,6 +1,32 @@
+# Ignore Stan executables
+# ignore *everything*
+*
+!/**/
+# unignore anything with an extension
+!*.*
+
+# on windows Stan executables end in .exe
+*.exe
+# Ignore temporary files created as part of compilation.
+*.hpp
+*.o
+
+*.Rproj
+**.DS_Store
+
 # History files
 .Rhistory
 .Rapp.history
+
+# Produced htmls
+notebooks/html
+# Figures
+figures/
+
+# Generated data
+data/*.RDS
+generated_data/*
+
 
 # Session Data files
 .RData
@@ -20,6 +46,7 @@
 
 # RStudio files
 .Rproj.user/
+.gitignore
 
 # produced vignettes
 vignettes/*.html
