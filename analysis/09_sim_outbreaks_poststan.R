@@ -1,7 +1,14 @@
-# Simulate outbreak spread from new introductions -------------------------------
+#-----------------------------------------------------------------#
+# Project: Defining epidemiologically relevant transmission
+#          units in Africa
+# File: 09_sim_outbreaks_poststan.R
+# Purpose: Simulate outbreak spread from new introductions
+#-----------------------------------------------------------------#
 
-## Initialize --------------------------------------------------------------------
-## ---- initialize
+#-----------------------------------------------------------#
+# Initialize----
+#-----------------------------------------------------------#
+
 library(tidyverse)
 library(here)
 library(furrr)
@@ -34,7 +41,10 @@ if(!exists("sim_all")){
 
 show_progress <- F
 
-### Read data----
+#-----------------------------------------------------------#
+# Read data----
+#-----------------------------------------------------------#
+
 source(here("analysis","02_import_data.R"), local = T) 
 source(here("analysis","04_hmm_setup.R"), local = T) 
 
@@ -50,8 +60,9 @@ model_run_dates <- str_extract_all(model_files, "(?<=objs_).*") |> list_c() |> a
 most_recent_run <- str_c("model_objs_", model_run_dates[which(model_run_dates==max(model_run_dates))])
 model <- qs2::qs_read(here::here(out_dir,most_recent_run))
 
-
-### Setup for simulation
+#-----------------------------------------------------------#
+# Setup for simulation----
+#-----------------------------------------------------------#
 
 ## We want to simulate spread based on introductions to different locations
 ## Start with point introductions by country, 2 strains
@@ -60,7 +71,6 @@ model <- qs2::qs_read(here::here(out_dir,most_recent_run))
 M <- length(countries_subset)
 n_time <- yrs    # number of years
 epsilon <- 1e-7 #small number
-
 
 #single introduction of a single strain
 if(test_subset){
@@ -90,15 +100,15 @@ case_dists <- cases_lineages |>
 
 ### Sample parameters----
 
-#Will be using connectivity, persistence, & case transformation from model draws
+# Will be using connectivity, persistence, & case transformation from model draws
 param_draws <- append(list(pull_params("xi",connectivity)),
                     purrr::map(c("delta", "eta"), pull_params, model$model_draws)) |> 
   set_names(c("xi", "delta", "eta"))
 runs <- model$metadata$iter_sampling*stan_chains
 
-## Simulate----
-
-### Downstream----
+#-----------------------------------------------------------#
+# Simulate: Downstream----
+#-----------------------------------------------------------#
 
 library(tictoc)
 if(downstream_outbreaks){
@@ -118,7 +128,9 @@ if(downstream_outbreaks){
   toc()
 }
 
-### Secondary----
+#-----------------------------------------------------------#
+# Simulate: Secondary----
+#-----------------------------------------------------------#
 
 if(secondary_outbreaks){
   tic("secondary")
@@ -138,7 +150,9 @@ if(secondary_outbreaks){
   toc()
 }
 
-## Save data ----
+#-----------------------------------------------------------#
+# Save data----
+#-----------------------------------------------------------#
 
 if(downstream_outbreaks){
   saveRDS(sims_downstream, glue::glue("{sim_dir}/sim_downstream.rds"))

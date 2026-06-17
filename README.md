@@ -1,11 +1,14 @@
 # cholera-units
 Cholera Transmission Units in Africa
 
-Code accompanying:
+### Code accompanying:
 
 *Defining Epidemiologically Relevant Units of Cholera Transmission in sub-Saharan Africa*
-**Bethany L. DiPrete, Javier Perez-Saez, Shirlee Wohl, Nathaniel Matteson, Seungwon Kim, Andrew S. Azman, Justin Lessler**
+
+Bethany L. DiPrete, Javier Perez-Saez, Shirlee Wohl, Nathaniel Matteson, Seungwon Kim, Andrew S. Azman, Justin Lessler
+
 medRxiv 2025.06.06.25329161; doi: https://doi.org/10.1101/2025.06.06.25329161
+
 ---
 
 ## Overview
